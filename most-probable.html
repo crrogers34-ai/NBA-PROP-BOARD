@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Most Probable | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html" aria-current="page">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap">
+<h1>Most Probable</h1>
+<p class="sub">The likeliest team and player outcomes on the slate. Pick a view below.</p>
+<div id="mp"></div>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script>
+function fair(p){p=Math.min(Math.max(p,.005),.995);return Math.round(p>=.5?-100*p/(1-p):100*(1-p)/p)}
+function sb(p,i){var q=Math.min(.97,Math.max(.03,p+(((i*7)%9)-4)/100));return{bk:["DK","FD","MGM","CZR"][i%4],odds:Math.round(q>=.5?-100*q/(1-q):100*(1-q)/q)}}
+function bc(r,p){var b=r.bo&&r.bo[MS.k],gap=b?p-imp(b.odds):0,w=gap>.15;return'<td class="num '+(b&&gap>0&&!w?"pos":"")+'">'+(w?'<span title="Far above the price">&#9888;</span> ':"")+(b?fo(b.odds)+' <span class="tm">'+b.bk+'</span>':"-")+'</td><td class="num">'+fo(fair(p))+'</td>'}
+var MD={team:[["win","To win"],["pts115","Score 115+"],["win10","Win by 10+"]],player:[["pts25","25+ points"],["pts30","30+ points"],["dd","Double-double"],["td","Triple-double"],["reb10","10+ rebounds"],["ast8","8+ assists"],["thr3","3+ threes"]]};
+var PB,MS={g:"team",k:"win"};
+function over(v,m,line){return 1-cdf((line-v)/sdOf(m,v))}
+function mpInit(){var T=[];GAMES0.forEach(function(g){[[g[0],g[1],true,g[2]],[g[1],g[0],false,-g[2]]].forEach(function(s){
+var e=(g[3]+s[3])/2;T.push({t:s[0],o:s[1],home:s[2],exp:+e.toFixed(1),win:cdf(s[3]/MSD),win10:1-cdf((9.5-s[3])/MSD),pts115:1-cdf((114.5-e)/SSD)})})});
+var P=SPL.map(function(p){var j=p.proj;return{n:p.n,t:p.t,o:p.o,inj:p.inj,pts25:over(j.Points,"Points",24.5),pts30:over(j.Points,"Points",29.5),reb10:over(j.Rebounds,"Rebounds",9.5),ast8:over(j.Assists,"Assists",7.5),thr3:over(j["3PM"],"3PM",2.5),dd:p.dd,td:p.td}});
+T.forEach(function(t,i){t.bo={};["win","win10","pts115"].forEach(function(k,j){t.bo[k]=sb(t[k],i+j)})});
+P.forEach(function(d,i){d.bo={};["pts25","pts30","dd","td","reb10","ast8","thr3"].forEach(function(k,j){if(d[k]!=null&&d[k]>.02)d.bo[k]=sb(d[k],i+j)})});
+PB={teams:T,players:P,sample:true};mpDraw()}
+function setP(j){PB=j;MS.k=MD[MS.g][0][0];mpDraw()}
+function mpDraw(){var tm=MS.g==="team",h='<div class="seg">'+["team","player"].map(function(g){return'<button data-g="'+g+'" aria-pressed="'+(g===MS.g)+'">'+(g==="team"?"Teams":"Players")+'</button>'}).join("")+'</div><div class="seg">'+MD[MS.g].map(function(m){return'<button data-k="'+m[0]+'" aria-pressed="'+(m[0]===MS.k)+'">'+m[1]+'</button>'}).join("")+'</div>';
+var L=(tm?PB.teams:PB.players).filter(function(r){return r[MS.k]!=null}).sort(function(a,b){return b[MS.k]-a[MS.k]}).slice(0,20);
+h+='<div class="tw"><table class="nw"><thead><tr><th>#</th><th>'+(tm?"Team":"Player")+'</th>'+(tm?"<th>Exp pts</th>":"")+'<th>Chance</th><th>Best odds</th><th>Fair value</th></tr></thead><tbody>'+(L.length?L.map(function(r,i){var p=r[MS.k];
+return'<tr><td>'+(i+1)+'</td><td><div class="nm">'+(tm?r.t:r.n)+(r.inj?' <span class="tg">'+r.inj+'</span>':'')+'</div><div class="tm">'+(tm?(r.home?"vs ":"at ")+r.o:r.t+" vs "+r.o)+'</div></td>'+(tm?'<td class="num">'+r.exp+'</td>':'')
++'<td><div class="eb"><span class="num">'+(p*100).toFixed(p<.1?1:0)+'%</span><i style="width:'+Math.round(p*100)+'px"></i></div></td>'+bc(r,p)+'</tr>'}).join(""):'<tr><td colspan="6" class="empty">Nothing posted for this yet.</td></tr>')+'</tbody></table></div><p class="sub" style="margin-top:10px">'+(PB.sample?"Sample data. ":"")+'Team chances come from the betting market spread and total. Player chances come from the model projections. They are estimates, not guarantees. Fair value is the price with no sportsbook margin built in. Best odds turn green when a book pays more than that fair price, which is where a bet would be +EV if you trust the model. A warning sign means our chance is more than 15 points above the price a book offers, which usually means the model is missing something, so check before trusting it.</p>';
+document.getElementById("mp").innerHTML=h}
+document.getElementById("mp").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
+if(b.dataset.g){MS.g=b.dataset.g;MS.k=MD[MS.g][0][0]}else if(b.dataset.k)MS.k=b.dataset.k;mpDraw()});
+mpInit();
+fetch("probable.json",{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){if(j.teams)setP(j)}).catch(function(){});
+</script>
+<script src="config.js"></script><script src="auth.js" data-wall></script><script src="menu.js"></script>
+</body>
+</html>

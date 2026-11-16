@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prop Board | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html" aria-current="page">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap">
+<h1>Prop Board</h1>
+<p class="sub">Our chance vs. book odds. Tap a prop to compare books. The tracker tab shows closing line value.</p>
+<p class="note" id="nt">Sample data. Players, projections, and odds are made up to demo the layout. The live board loads automatically after each update.</p>
+<div class="tabs" role="tablist"><button role="tab" id="t1" aria-selected="true">Board</button><button role="tab" id="t2" aria-selected="false">CLV tracker</button></div>
+<div id="bd"><div class="ctl">
+<label>Market <select id="mk"><option value="all">All markets</option></select></label>
+<label>Game <select id="gm"><option value="all">All games</option></select></label>
+<label>Min edge <input id="me" type="range" min="0" max="10" step="0.5" value="2"><b id="mv">2.0%</b></label>
+</div>
+<p class="note" id="lv" hidden></p>
+<div class="tw"><table><thead><tr>
+<th>Player</th><th>Prop</th><th>Pick</th><th>Odds</th><th>Proj</th><th>Our %</th><th>Edge</th>
+</tr></thead><tbody id="tb"></tbody></table></div></div>
+<div id="ck" hidden></div>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script>
+var ORDER=["Points","Rebounds","Assists","3PM","PRA"];
+function build(P){return P.map(function(d){
+var sd=wsd(d),bs=d.books.map(function(b){return blend(d,b,sd)});
+var best=bs.reduce(function(a,b){return b.e>a.e?b:a}),worst=bs.reduce(function(a,b){return b.e<a.e?b:a});
+return{g:d.g||[d.o,d.t].join("@"),when:d.when||'',kick:d.kick||'',inj:d.inj||'',role:d.role||'',n:d.n,t:d.t,o:d.o,m:d.m,proj:d.proj,sd:sd,bs:bs,line:best.line,side:best.side,odds:best.odds,p:best.p,e:best.e,bk:best.bk,gain:best.e-worst.e}})}
+var R=build(sampleBoard());
+var mk=document.getElementById("mk"),me=document.getElementById("me"),mv=document.getElementById("mv"),tb=document.getElementById("tb"),open=null;
+var gm=document.getElementById("gm"),want="all";
+try{want=new URLSearchParams(location.search).get("game")||"all"}catch(e){}
+function live(r){return !!r.kick&&Date.parse(r.kick)<=Date.now()}
+function tip(r){var k=Date.parse(r.kick||"");if(!isNaN(k))return k;var m=/(\d+):(\d+) (AM|PM)/.exec(r.when||"");return m?(+m[1]%12+(m[3]==="PM"?12:0))*60+ +m[2]:9e15}
+function fg(){var cur=gm.value!=="all"?gm.value:want,seen={},gs=[];
+R.forEach(function(r){if(!live(r)&&!seen[r.g]){seen[r.g]=1;gs.push({g:r.g,w:r.when,k:tip(r)})}});
+gs.sort(function(a,b){return a.k-b.k||(a.g<b.g?-1:1)});
+gm.innerHTML='<option value="all">All games</option>';
+gs.forEach(function(x){var o=document.createElement("option");o.value=x.g;o.textContent=x.g.replace("@"," @ ")+(x.w?" · "+x.w:"");gm.appendChild(o)});
+gm.value=seen[cur]?cur:"all"}
+function setUrl(){try{var u=new URL(location.href);if(gm.value==="all")u.searchParams.delete("game");else u.searchParams.set("game",gm.value);history.replaceState(null,"",u)}catch(e){}}
+function fill(){var keep=mk.value;mk.innerHTML='<option value="all">All markets</option>';
+R.map(function(r){return r.m}).filter(function(v,i,a){return a.indexOf(v)===i}).sort(function(a,b){var x=ORDER.indexOf(a),y=ORDER.indexOf(b);return(x<0?99:x)-(y<0?99:y)}).forEach(function(m){
+var o=document.createElement("option");o.value=m;o.textContent=m;mk.appendChild(o)});mk.value=[].some.call(mk.options,function(o){return o.value===keep})?keep:"all";fg()}
+fill();
+function chart(r){
+var W=420,H=110,B=H-10,lo=r.proj-3.5*r.sd,hi=r.proj+3.5*r.sd;
+function x(v){return(v-lo)/(hi-lo)*W}
+function y(v){return B-Math.exp(-.5*Math.pow((v-r.proj)/r.sd,2))*(H-30)}
+var vs=[],i;for(i=0;i<=70;i++)vs.push(lo+(hi-lo)*i/70);
+var curve=vs.map(function(v){return x(v).toFixed(1)+","+y(v).toFixed(1)}).join(" ");
+var ov=r.side==="Over",in_=vs.filter(function(v){return ov?v>r.line:v<r.line});
+in_=ov?[r.line].concat(in_):in_.concat([r.line]);
+var sh=in_.map(function(v){return x(v).toFixed(1)+","+y(v).toFixed(1)});
+sh.unshift(x(in_[0]).toFixed(1)+","+B);sh.push(x(in_[in_.length-1]).toFixed(1)+","+B);
+var col=ov?"var(--pos)":"var(--neg)",lx=x(r.line),right=lx<W-80;
+return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Projected range against the line">'
++'<polygon points="'+sh.join(" ")+'" fill="'+col+'" opacity=".28"/>'
++'<polyline points="'+curve+'" fill="none" stroke="var(--ink)" stroke-width="2"/>'
++'<line x1="'+lx.toFixed(1)+'" x2="'+lx.toFixed(1)+'" y1="6" y2="'+B+'" stroke="var(--flag)" stroke-width="3"/>'
++'<line x1="0" x2="'+W+'" y1="'+B+'" y2="'+B+'" stroke="var(--line)"/>'
++'<text x="'+(right?lx+6:lx-6).toFixed(1)+'" y="16" font-size="12" fill="var(--ink)" text-anchor="'+(right?"start":"end")+'">Line '+r.line+'</text>'
++'<text x="'+x(r.proj).toFixed(1)+'" y="'+B+'" dy="-4" font-size="11" fill="var(--mute)" text-anchor="middle">Proj '+r.proj+'</text></svg>'}
+function bt(r){
+return '<div style="overflow-x:auto"><table class="bk"><thead><tr><th>Book</th><th>Line</th><th>Over</th><th>Under</th><th>Edge</th><th></th></tr></thead><tbody>'+r.bs.map(function(b,i){
+return '<tr'+(b.bk===r.bk?' class="best"':'')+'><td>'+b.bk+'</td><td>'+b.line+'</td><td>'+fo(b.ov)+'</td><td>'+fo(b.un)+'</td><td class="'+(b.e>=0?'pos':'neg')+'">'+(b.e>=0?'+':'')+b.e.toFixed(1)+'% '+b.side+'</td><td><button class="lg" data-k="'+r.n+'|'+r.m+'" data-b="'+i+'">Log</button></td></tr>'}).join('')+'</tbody></table></div>'}
+function draw(){
+var m=mk.value,g=gm.value,min=parseFloat(me.value);mv.textContent=min.toFixed(1)+"%";
+var hid=R.filter(live).length,lv=document.getElementById("lv");lv.hidden=!hid;lv.textContent=hid+" props are hidden because their games have tipped off. Lines move once a game is live, so pregame projections would show misleading edges.";
+var rows=R.filter(function(r){return!live(r)&&(m==="all"||r.m===m)&&(g==="all"||r.g===g)&&r.e>=min}).sort(function(a,b){return b.e-a.e});
+if(!rows.length){tb.innerHTML='<tr><td colspan="7" class="empty">No props clear this edge. Lower the minimum edge or pick another market or game.</td></tr>';return}
+tb.innerHTML=rows.map(function(r){
+var k=r.n+'|'+r.m,s='<tr class="r" tabindex="0" data-k="'+k+'"><td><div class="nm">'+r.n+(r.inj?' <span class="tg">'+r.inj+'</span>':'')+(r.role?' <span class="tg '+(r.role==="Role up"?"up":"dn")+'">'+r.role+'</span>':'')+'</div><div class="tm">'+r.t+' vs '+r.o+'</div></td>'
++'<td>'+r.m+'<div class="tm">'+r.bk+'</div></td>'
++'<td class="num '+(r.side==="Over"?"ov":"un")+'">'+r.side+' '+r.line+'</td>'
++'<td class="num">'+fo(r.odds)+'</td><td class="num">'+r.proj+'</td>'
++'<td class="num">'+(r.p*100).toFixed(1)+'%</td>'
++'<td><div class="eb"><span class="num">+'+r.e.toFixed(1)+'%</span><i style="width:'+Math.min(r.e*7,70)+'px"></i></div></td></tr>';
+if(open===k)s+='<tr class="dt"><td colspan="7">'+chart(r)+bt(r)+'<p>Blending the projection with the book\'s no-vig price gives '+r.side+' '+r.line+' a '+(r.p*100).toFixed(1)+'% chance. The book prices it at '+(imp(r.odds)*100).toFixed(1)+'%. Shopping across books adds '+r.gain.toFixed(1)+' points of edge over the worst price.</p></td></tr>';
+return s}).join("")}
+tb.addEventListener("click",function(e){var lb=e.target.closest(".lg");if(lb){logBet(lb);return}var tr=e.target.closest("tr.r");if(!tr)return;
+var k=tr.getAttribute("data-k");open=open===k?null:k;draw()});
+tb.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){var tr=e.target.closest("tr.r");if(tr){e.preventDefault();tr.click()}}});
+mk.onchange=me.oninput=function(){open=null;draw()};
+gm.onchange=function(){want=gm.value;open=null;setUrl();draw()};
+var BETS=[];try{BETS=JSON.parse(localStorage.getItem("nba_bets")||"[]")}catch(e){}
+function sv(){try{localStorage.setItem("nba_bets",JSON.stringify(BETS))}catch(e){}}
+function num(v){var n=parseFloat(v);return isNaN(n)?null:n}
+function clvOf(b){var co=num(b.co),cu=num(b.cu),cl=num(b.cl);if(co===null||cu===null||Math.abs(co)<100||Math.abs(cu)<100)return null;
+if(cl!==null&&cl!==b.line)return"moved";
+var io=imp(co),iu=imp(cu),f=(b.side==="Over"?io:iu)/(io+iu);return(f-imp(b.odds))*100}
+function logBet(btn){var r=R.filter(function(x){return x.n+"|"+x.m===btn.getAttribute("data-k")})[0];if(!r)return;
+var b=r.bs[+btn.getAttribute("data-b")];BETS.push({id:Date.now(),n:r.n,m:r.m,side:b.side,line:b.line,odds:b.odds,bk:b.bk});sv();ck();btn.textContent="Logged";btn.disabled=true}
+function ck(){
+var rs=BETS.map(function(b){return{b:b,c:clvOf(b)}}),ok=rs.filter(function(r){return typeof r.c==="number"}),avg=ok.reduce(function(a,r){return a+r.c},0)/(ok.length||1),w=ok.filter(function(r){return r.c>0}).length,h="";
+h+='<div class="sum"><div><span class="num">'+BETS.length+'</span>bets logged</div><div><span class="num '+(avg>=0?"pos":"neg")+'">'+(ok.length?(avg>=0?"+":"")+avg.toFixed(1)+"%":"-")+'</span>average CLV</div><div><span class="num">'+(ok.length?Math.round(w/ok.length*100)+"%":"-")+'</span>beat the close</div></div>';
+if(!BETS.length)h+='<p class="note">No bets logged yet. Open a prop on the Prop Board and tap Log next to the book you bet at.</p>';
+else h+='<div class="tw"><table><thead><tr><th>Bet</th><th>Odds</th><th>Close line</th><th>Close over</th><th>Close under</th><th>CLV</th><th></th></tr></thead><tbody>'+rs.map(function(r){var b=r.b,c=r.c;
+return'<tr><td><div class="nm">'+b.n+'</div><div class="tm">'+b.m+' '+b.side+' '+b.line+' @ '+b.bk+'</div></td><td class="num">'+fo(b.odds)+'</td>'
++["cl","co","cu"].map(function(f){return'<td><input class="ci" id="ci-'+b.id+'-'+f+'" inputmode="decimal" data-id="'+b.id+'" data-f="'+f+'" value="'+(b[f]==null?"":b[f])+'" placeholder="'+(f==="cl"?b.line:"-110")+'"></td>'}).join("")
++'<td class="num '+(typeof c==="number"?(c>=0?"pos":"neg"):"")+'">'+(typeof c==="number"?(c>=0?"+":"")+c.toFixed(1)+"%":c==="moved"?"Line moved":"Pending")+'</td><td><button class="lg" data-del="'+b.id+'" aria-label="Delete bet">x</button></td></tr>'}).join("")+'</tbody></table></div>';
+h+='<p class="sub" style="margin-top:10px">Right before tip-off, enter the closing over and under odds from the same book. CLV compares your price with the no-vig closing price. If the line moved, CLV is skipped. Bets are saved in this browser only.</p>';
+document.getElementById("ck").innerHTML=h}
+document.getElementById("ck").addEventListener("change",function(e){var i=e.target;if(!i.classList.contains("ci"))return;
+BETS.forEach(function(b){if(String(b.id)===i.getAttribute("data-id"))b[i.getAttribute("data-f")]=i.value===""?null:i.value});sv();ck()});
+document.getElementById("ck").addEventListener("click",function(e){var d=e.target.closest("[data-del]");if(!d)return;
+BETS=BETS.filter(function(b){return String(b.id)!==d.getAttribute("data-del")});sv();ck()});
+function tab(n){var ids=["bd","ck"],ts=["t1","t2"];ids.forEach(function(d,i){document.getElementById(d).hidden=i!==n;document.getElementById(ts[i]).setAttribute("aria-selected",i===n)})}
+document.getElementById("t1").onclick=function(){tab(0)};document.getElementById("t2").onclick=function(){tab(1)};
+ck();draw();
+setInterval(function(){fg();draw()},60000);
+get("board.json").then(function(j){if(!j)return;var P=(j.props||[]).filter(function(p){return p.books&&p.books.length});if(!P.length)return;
+R=build(P);open=null;fill();draw();
+document.getElementById("nt").textContent="Live board: "+R.length+" props. Updated "+(j.generated?new Date(j.generated).toLocaleString():"recently")+"."});
+</script>
+<script src="config.js"></script><script src="auth.js" data-wall></script><script src="menu.js"></script>
+</body>
+</html>

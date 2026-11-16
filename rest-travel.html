@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rest &amp; Travel | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html" aria-current="page">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap">
+<h1>Rest &amp; Travel</h1>
+<p class="sub">Back-to-backs, days of rest, road miles, and altitude for every game on the slate. Games with the biggest rest gap between the two teams come first.</p>
+<div class="ctl"><label><input type="checkbox" id="only"> Only games with a rest edge</label></div>
+<div id="cc"></div>
+<p class="sub" id="nc" style="margin-top:10px;font-size:13px"></p>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script src="rest.js"></script>
+<script>
+var D={history:REST.HIST,games:sampleGames().map(REST.sample)},SM=true;
+function draw(){var only=document.getElementById("only").checked,L=D.games.map(function(g){return{g:g,v:REST.sev(g)}}).filter(function(x){return!only||x.v.n>=2});
+L.sort(function(a,b){return b.v.n-a.v.n});
+document.getElementById("cc").innerHTML=L.length?L.map(function(x){return REST.card(x.g,D.history)}).join(""):'<p class="empty">No games have a notable rest edge right now.</p>';
+document.getElementById("nc").textContent=(SM?"Sample data. ":"")+"Rest is counted in days off between games, so a back-to-back is 0 days. Travel is the straight-line distance from the arena of the team's last game."+(D.history?" Past-game numbers cover games since 2015-16 in similar spots and are measured against the closing spread and total; they describe the past and are not a guarantee.":"")}
+document.getElementById("only").onchange=draw;
+draw();
+fetch("rest.json",{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){if(j.games&&j.games.length){D=j;SM=false;draw()}}).catch(function(){});
+</script>
+<script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>
+</body>
+</html>

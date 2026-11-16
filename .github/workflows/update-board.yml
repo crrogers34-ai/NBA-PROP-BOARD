@@ -1,0 +1,42 @@
+name: Update board
+
+on:
+  schedule:
+    - cron: "0 19 * * *"   # every day, about 2 PM Eastern (after most player props are posted)
+    - cron: "0 23 * * *"   # every day, about 6 PM Eastern (late injury news, before the first tip-off)
+  workflow_dispatch:        # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-board
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Box scores already downloaded are kept between runs, so each run only fetches new games.
+      - uses: actions/cache@v4
+        with:
+          path: .nba_cache
+          key: nba-cache-${{ github.run_id }}
+          restore-keys: nba-cache-
+      - run: python build_nba.py
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          NBA_SOURCE: espn   # NBA.com blocks GitHub's servers, so the scheduled run reads ESPN box scores
+      - name: Commit data files
+        run: |
+          git config user.name "board-bot"
+          git config user.email "board-bot@users.noreply.github.com"
+          git add *.json slates/index.json
+          git diff --staged --quiet || (git commit -m "Update board" && git pull --rebase && git push)

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Game | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html" aria-current="page">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap" id="wrap"><div id="gd"></div>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script src="rest.js"></script>
+<script>
+var PLAT="dk",CUR=null,RJ=null;
+function find(L,id){return L.filter(function(g){return g.id===id})[0]||L[0]}
+function nm(p){return'<span class="nm">'+p.n+'</span>'+(p.inj?' <span class="tg">'+p.inj+'</span>':"")}
+function f1(x){return(x||0).toFixed(1)}
+function lineText(p){var j=p.proj;return f1(j.Points)+" pts · "+f1(j.Rebounds)+" reb · "+f1(j.Assists)+" ast"+((j["3PM"]||0)>=1?" · "+f1(j["3PM"])+" 3PM":"")}
+function box(pl,t){var T=pl.filter(function(r){return r.t===t}).sort(function(a,b){return(b.min||0)-(a.min||0)});
+function sum(k){return T.reduce(function(a,p){return a+(p.proj[k]||0)},0)}
+var h='<div class="tm" style="margin:10px 0 4px"><b>'+t+'</b> rotation</div><div class="tw"><table class="nw"><thead><tr><th>Player</th><th style="text-align:right">MIN</th><th style="text-align:right">PTS</th><th style="text-align:right">REB</th><th style="text-align:right">AST</th><th style="text-align:right">3PM</th></tr></thead><tbody>'
++(T.length?T.map(function(p){return'<tr><td>'+nm(p)+'<div class="tm">'+(p.pos||"")+'</div></td><td class="num" style="text-align:right">'+(p.min||"-")+'</td><td class="num" style="text-align:right">'+f1(p.proj.Points)+'</td><td class="num" style="text-align:right">'+f1(p.proj.Rebounds)+'</td><td class="num" style="text-align:right">'+f1(p.proj.Assists)+'</td><td class="num" style="text-align:right">'+f1(p.proj["3PM"])+'</td></tr>'}).join("")
++'<tr><td><b>Listed players</b></td><td class="num" style="text-align:right">'+Math.round(T.reduce(function(a,p){return a+(p.min||0)},0))+'</td><td class="num" style="text-align:right"><b>'+f1(sum("Points"))+'</b></td><td class="num" style="text-align:right"><b>'+f1(sum("Rebounds"))+'</b></td><td class="num" style="text-align:right"><b>'+f1(sum("Assists"))+'</b></td><td class="num" style="text-align:right"><b>'+f1(sum("3PM"))+'</b></td></tr>':'<tr><td colspan="6" class="empty">None projected</td></tr>')+'</tbody></table></div>';
+return{html:h,pts:sum("Points"),reb:sum("Rebounds"),ast:sum("Assists"),thr:sum("3PM")}}
+function restSection(g,smp){var c=smp?REST.sample(g):(RJ&&(RJ.games||[]).filter(function(x){return x.id===g.id})[0]);if(!c)return"";
+return'<h2 class="sec" style="margin-top:22px">Rest &amp; travel</h2>'+REST.card(c,smp?REST.HIST:RJ.history)+'<p class="sub" style="font-size:13px">'+(smp?"Sample data. ":"")+'<a href="rest-travel.html">See every game\'s rest and travel</a></p>'}
+function render(g,P,smp){CUR={g:g,P:P,smp:smp};var el=document.getElementById("gd"),fav=g.spread>=0?g.home:g.away,fs=Math.abs(g.spread);
+var pl=P.filter(function(r){return(r.t===g.home||r.t===g.away)&&r.proj});pl.forEach(function(p){p._pts=fpts(p,PLAT)});
+function top(t){var L=pl.filter(function(r){return r.t===t}).sort(function(a,b){return b._pts-a._pts}).slice(0,3);
+return L.length?L.map(function(r){return'<tr><td><div>'+nm(r)+'</div><div class="tm">'+lineText(r)+'</div></td><td class="num" style="text-align:right">'+r._pts.toFixed(1)+'</td></tr>'}).join(""):'<tr><td class="empty">Player projections appear here once the data is loaded.</td></tr>'}
+var A=box(pl,g.away),Hm=box(pl,g.home);
+function srow(l,a,h){return'<tr><td>'+l+'</td><td class="num" style="text-align:right">'+a+'</td><td class="num" style="text-align:right">'+h+'</td></tr>'}
+var pn=PLAT==="dk"?"DraftKings":"FanDuel";
+el.innerHTML='<p class="sub"><a href="index.html">&larr; All games</a></p><h1>'+g.away+' at '+g.home+'</h1><p class="sub">'+g.when+'</p>'
++'<div class="gs"><div><div class="tm">'+g.away+'</div><div class="big">'+g.exp_away.toFixed(1)+'</div><div class="tm">'+Math.round(g.win_away*100)+'% to win</div></div><div class="vs">vs</div><div><div class="tm">'+g.home+'</div><div class="big">'+g.exp_home.toFixed(1)+'</div><div class="tm">'+Math.round(g.win_home*100)+'% to win</div></div></div>'
++'<div class="sum"><div><span class="num">'+fav+' -'+fs+'</span>market spread</div><div><span class="num">'+g.total+'</span>market total</div><div><span class="num">'+Math.round(g.close*100)+'%</span>decided by 5 or fewer</div><div><span class="num">'+Math.round(g.hi230*100)+'%</span>230+ total points</div></div>'
++'<div class="two"><div><h2 class="sec">Margin of victory</h2>'+hist(g.margin_hist,MB,0,function(e){return e>=0?"var(--ink)":"var(--mute)"},"Simulated margin")+'<p class="sub" style="font-size:13px">Dark bars are '+g.home+' wins, gray bars are '+g.away+' wins. The orange line is an even game.</p></div>'
++'<div><h2 class="sec">Total points</h2>'+hist(g.total_hist,TB,g.total,function(){return"var(--ink)"},"Simulated total points")+'<p class="sub" style="font-size:13px">The orange line is the market total of '+g.total+'.</p></div></div>'
++'<h2 class="sec" style="margin-top:8px">Players to watch</h2><p class="sub" style="margin:0 0 8px">The three highest projected fantasy scorers on each team, with their projected stat lines.</p>'
++'<div class="seg"><button data-p="dk" aria-pressed="'+(PLAT==="dk")+'">DraftKings</button><button data-p="fd" aria-pressed="'+(PLAT==="fd")+'">FanDuel</button></div>'
++'<div class="two"><div><div class="tm" style="margin-bottom:4px">'+g.away+' &middot; '+pn+' fantasy points</div><div class="tw"><table class="nw"><tbody>'+top(g.away)+'</tbody></table></div></div><div><div class="tm" style="margin-bottom:4px">'+g.home+' &middot; '+pn+' fantasy points</div><div class="tw"><table class="nw"><tbody>'+top(g.home)+'</tbody></table></div></div></div>'
++'<h2 class="sec" style="margin-top:22px">Projected box score</h2>'
++'<div class="tw"><table class="nw"><thead><tr><th>Team stats</th><th style="text-align:right">'+g.away+'</th><th style="text-align:right">'+g.home+'</th></tr></thead><tbody>'+srow("Predicted points (sim)",g.exp_away.toFixed(1),g.exp_home.toFixed(1))+srow("Win chance",Math.round(g.win_away*100)+"%",Math.round(g.win_home*100)+"%")+srow("Points from listed players",f1(A.pts),f1(Hm.pts))+srow("Rebounds",f1(A.reb),f1(Hm.reb))+srow("Assists",f1(A.ast),f1(Hm.ast))+srow("Threes made",f1(A.thr),f1(Hm.thr))+'</tbody></table></div>'
++'<div class="two"><div>'+A.html+'</div><div>'+Hm.html+'</div></div>'
++'<p class="sub" style="font-size:13px;margin-top:10px">'+(smp?"Sample data. ":"")+'Scores come from 20,000 simulated games centered on the betting market. Stat lines come from the player projections: only players with a projection are listed, so team totals leave out the end of the bench. These are averages, not predictions of exact results.</p>'+restSection(g,smp)}
+document.getElementById("gd").onclick=function(e){var b=e.target.closest("[data-p]");if(!b||!CUR)return;PLAT=b.getAttribute("data-p");render(CUR.g,CUR.P,CUR.smp)};
+var id=new URLSearchParams(location.search).get("g");
+render(find(sampleGames(),id),SPL,true);
+Promise.all([get("games.json"),get("probable.json"),get("rest.json")]).then(function(a){var gj=a[0],p=a[1];RJ=a[2]&&a[2].games?a[2]:null;
+if(gj&&gj.games&&gj.games.length){var g=find(gj.games,id);document.title=g.away+" at "+g.home+" | Pick & Roll Analytics";render(g,p&&p.players||[],false)}});
+</script>
+<script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>
+</body>
+</html>

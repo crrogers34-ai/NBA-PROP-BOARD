@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parlay Builder | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html" aria-current="page">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap wide">
+<h1>Parlay Builder</h1>
+<p class="sub">Pick a game, tap odds to build your slip, then compare the parlay price at each sportsbook. Only books posting the same line for every leg are compared.</p>
+<p class="sub" id="pn" style="font-size:13px;margin-top:-6px"></p>
+<div class="pbwrap"><div id="pbmain"></div><aside class="slipbox" id="slip" aria-label="Bet slip"></aside></div>
+<button class="btn fab" id="fab">Slip (0)</button>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script>
+var BKS=["DK","FD","MGM","CZR"],BN={DK:"DraftKings",FD:"FanDuel",MGM:"BetMGM",CZR:"Caesars"},HOME={DK:"https://sportsbook.draftkings.com",FD:"https://sportsbook.fanduel.com",MGM:"https://sports.betmgm.com",CZR:"https://sportsbook.caesars.com"};
+var G=[],LG={},SLIP=[],ST={gid:null,tab:"lines",mk:"All",stake:10,sample:true};
+function dec(o){return o>0?1+o/100:1+100/-o}
+function am(d){return d>=2?"+"+Math.round((d-1)*100):"-"+Math.round(100/(d-1))}
+function frp(p){return p>=.5?-Math.round(100*p/(1-p)):Math.round(100*(1-p)/p)}
+function mode(a){var c={},b=null;a.forEach(function(x){c[x]=(c[x]||0)+1;if(b===null||c[x]>c[b])b=x});return b}
+function pt(x){return x>0?"+"+x:""+x}
+function best(l){var b=null;BKS.forEach(function(k){var o=l.books[k];if(o&&(b===null||dec(o.odds)>dec(l.books[b].odds)))b=k});return b}
+function toBooks(recs){var o={};recs.forEach(function(r){if(r.odds!=null&&(!o[r.bk]||dec(r.odds)>dec(o[r.bk].odds)))o[r.bk]={odds:r.odds,link:r.link||HOME[r.bk]}});return o}
+function addLeg(g,id,mk,label,sub,p,books){var l={id:id,gid:g.id,mk:mk,label:label,sub:sub,p:p,books:books};LG[id]=l;g.legs.push(l);return l}
+function buildGame(g,L){g.legs=[];g.props=[];var m=g.spread,t=g.total;
+[[g.away,g.win_away],[g.home,g.win_home]].forEach(function(x){var b=toBooks(L.h2h.filter(function(r){return r.team===x[0]}));if(Object.keys(b).length)addLeg(g,g.id+":ml:"+x[0],g.id+"|ml",x[0]+" ML","Moneyline",x[1],b)});
+var hp=L.spreads.filter(function(r){return r.team===g.home}).map(function(r){return r.point});
+if(hp.length){var p=mode(hp),ph=1-cdf((-p-m)/MSD);
+addLeg(g,g.id+":sp:"+g.away,g.id+"|sp",g.away+" "+pt(-p),"Spread",1-ph,toBooks(L.spreads.filter(function(r){return r.team===g.away&&r.point===-p})));
+addLeg(g,g.id+":sp:"+g.home,g.id+"|sp",g.home+" "+pt(p),"Spread",ph,toBooks(L.spreads.filter(function(r){return r.team===g.home&&r.point===p})))}
+var tp=L.totals.map(function(r){return r.point});
+if(tp.length){var T=mode(tp),po=1-cdf((T-t)/TSD);["Over","Under"].forEach(function(s){addLeg(g,g.id+":to:"+s,g.id+"|to",s+" "+T,"Total",s==="Over"?po:1-po,toBooks(L.totals.filter(function(r){return r.side===s&&r.point===T})))})}}
+function buildProps(P){P.forEach(function(d){var g=G.filter(function(x){return(x.home===d.t&&x.away===d.o)||(x.away===d.t&&x.home===d.o)})[0];if(!g||!d.books||!d.books.length)return;
+var ln=mode(d.books.map(function(b){return b.line})),at=d.books.filter(function(b){return b.line===ln}),po=1-cdf((ln-d.proj)/d.sd),mk=d.n+"|"+d.m,id=g.id+":pr:"+mk;
+var ov=addLeg(g,id+":O",mk,d.n+" O "+ln+" "+d.m,"Prop",po,toBooks(at.map(function(b){return{bk:b.bk,odds:b.ov,link:b.lov}})));
+var un=addLeg(g,id+":U",mk,d.n+" U "+ln+" "+d.m,"Prop",1-po,toBooks(at.map(function(b){return{bk:b.bk,odds:b.un,link:b.lun}})));
+g.props.push({n:d.n,t:d.t,m:d.m,line:ln,over:ov,under:un,inj:d.inj||""})})}
+function J(i){return((i*7)%5-2)*5}
+function sampleData(){var S=sampleGames(),lines=[];
+S.forEach(function(g,i){var L={h2h:[],spreads:[],totals:[]};BKS.forEach(function(k,j){
+[[g.away,g.win_away],[g.home,g.win_home]].forEach(function(x){L.h2h.push({bk:k,team:x[0],odds:Math.round(frp(Math.min(.97,x[1]+.025))/5)*5+J(i+j+(x[0]===g.home?1:0)),link:HOME[k]})});
+var hp=-Math.round(g.spread*2)/2+(k==="CZR"?.5:0);
+L.spreads.push({bk:k,team:g.home,point:hp,odds:-110+J(i+j),link:HOME[k]});L.spreads.push({bk:k,team:g.away,point:-hp,odds:-110+J(i+j+1),link:HOME[k]});
+var tp=Math.round(g.total*2)/2+(k==="MGM"?1:0);["Over","Under"].forEach(function(s,n){L.totals.push({bk:k,side:s,point:tp,odds:-110+J(i+j+n),link:HOME[k]})})});lines.push(L)});
+var P=sampleBoard().filter(function(d){return d.m!=="PRA"&&d.proj>=4||d.m==="3PM"}).map(function(d){d.books=d.books.map(function(b){b.lov=HOME[b.bk];b.lun=HOME[b.bk];return b});return d});
+return{games:S,lines:lines,props:P}}
+function load(games,lines,props,sample){G=games;LG={};SLIP=[];ST.sample=sample;ST.gid=G.length?G[0].id:null;
+G.forEach(function(g,i){buildGame(g,lines[i]||{h2h:[],spreads:[],totals:[]})});buildProps(props);render()}
+function fromReal(gj,lj,bj){var lines=[],games=[];gj.games.forEach(function(g){var L=(lj.games||[]).filter(function(x){return x.home===g.home&&x.away===g.away})[0];if(L){games.push({id:g.id,home:g.home,away:g.away,when:g.when,spread:g.spread,total:g.total,win_home:g.win_home,win_away:g.win_away});lines.push(L)}});
+if(!games.length)return false;load(games,lines,(bj&&bj.props)||[],false);return true}
+function toggle(id){var l=LG[id],i=SLIP.indexOf(id);if(i>=0){SLIP.splice(i,1)}else{SLIP=SLIP.filter(function(x){return LG[x].mk!==l.mk});SLIP.push(id)}render()}
+function legBtn(l){var b=best(l);if(b===null)return'<button class="leg" disabled><span>'+l.label+'</span><span class="num">-</span></button>';
+return'<button class="leg'+(SLIP.indexOf(l.id)>=0?" on":"")+'" data-leg="'+l.id+'"><span>'+l.label+'</span><span class="num">'+fo(l.books[b].odds)+'</span></button>'}
+function pair(g,sub){var L=g.legs.filter(function(l){return l.sub===sub});return L.length?'<div class="tm" style="margin:8px 0 4px">'+sub+'</div><div class="lrow">'+L.map(legBtn).join("")+'</div>':""}
+function merged(k,links){if(k!=="FD"||links.length<2)return null;var ps=[],base=null;for(var i=0;i<links.length;i++){var m=/^(.*)\/addToBetslip\?marketId=([^&]+)&selectionId=([^&]+)/.exec(links[i]||"");if(!m)return null;base=m[1];ps.push("marketId["+i+"]="+m[2]+"&selectionId["+i+"]="+m[3])}return base+"/addToBetslip?"+ps.join("&")}
+function rows(){var legs=SLIP.map(function(i){return LG[i]});return BKS.map(function(k){var have=legs.filter(function(l){return l.books[k]}).length,ok=legs.length>0&&have===legs.length;
+return{k:k,have:have,ok:ok,d:ok?legs.reduce(function(a,l){return a*dec(l.books[k].odds)},1):null,links:ok?legs.map(function(l){return l.books[k].link}):[]}})}
+var MO=["All","Points","Rebounds","Assists","3PM","PRA"];
+function render(){var g=G.filter(function(x){return x.id===ST.gid})[0],h="";
+h+='<div class="seg">'+G.map(function(x){return'<button data-g="'+x.id+'" aria-pressed="'+(x.id===ST.gid)+'">'+x.away+" at "+x.home+'</button>'}).join("")+'</div>';
+h+='<div class="seg"><button data-tab="lines" aria-pressed="'+(ST.tab==="lines")+'">Game lines</button><button data-tab="props" aria-pressed="'+(ST.tab==="props")+'">Player props</button></div>';
+if(g&&ST.tab==="lines")h+='<p class="sub" style="margin:0 0 4px">'+g.when+'</p>'+(g.legs.length?pair(g,"Moneyline")+pair(g,"Spread")+pair(g,"Total"):'<p class="empty">No game lines loaded for this game.</p>');
+if(g&&ST.tab==="props"){var ms=["All"].concat(g.props.map(function(p){return p.m}).filter(function(v,i,a){return a.indexOf(v)===i})).sort(function(a,b){var x=MO.indexOf(a),y=MO.indexOf(b);return(x<0?99:x)-(y<0?99:y)});
+h+='<div class="seg">'+ms.map(function(m){return'<button data-mk="'+m+'" aria-pressed="'+(m===ST.mk)+'">'+m+'</button>'}).join("")+'</div>';
+var L=g.props.filter(function(p){return ST.mk==="All"||p.m===ST.mk});
+h+=L.length?L.map(function(p){return'<div class="tm" style="margin:8px 0 4px"><b>'+p.n+'</b>'+(p.inj?' <span class="tg">'+p.inj+'</span>':'')+' &middot; '+p.m+' '+p.line+'</div><div class="lrow">'+legBtn(p.over)+legBtn(p.under)+'</div>'}).join(""):'<p class="empty">No player props for this game yet.</p>'}
+document.getElementById("pbmain").innerHTML=h;renderSlip()}
+function renderSlip(){var n=SLIP.length,legs=SLIP.map(function(i){return LG[i]}),h='<h2 class="sec">Bet slip ('+n+')</h2>';
+if(!n){h+='<p class="sub">Tap any odds to add a leg. Add two or more to build a parlay.</p>'}else{
+h+=legs.map(function(l){var b=best(l);return'<div class="sl"><div><div class="nm">'+l.label+'</div><div class="tm">'+l.sub+(b?" &middot; best "+fo(l.books[b].odds)+" "+b:"")+'</div></div><button class="lg" data-rm="'+l.id+'" aria-label="Remove leg">&times;</button></div>'}).join("");
+var gs={},sgp=false;legs.forEach(function(l){if(gs[l.gid])sgp=true;gs[l.gid]=1});
+h+='<label class="tm" style="display:block;margin:10px 0 6px">Stake $ <input class="ci" id="stk" inputmode="decimal" value="'+ST.stake+'"></label>';
+var R=rows(),bk=null;R.forEach(function(r){if(r.ok&&(bk===null||r.d>bk.d))bk=r});
+h+='<div class="tw"><table class="nw"><thead><tr><th>Book</th><th>'+(n>1?"Parlay":"Odds")+'</th><th>Pays</th><th></th></tr></thead><tbody>'+R.map(function(r){
+if(!r.ok)return'<tr class="dim"><td>'+BN[r.k]+'</td><td colspan="3" class="tm">'+(r.have+" of "+n+" legs at this line")+'</td></tr>';
+var pay=ST.stake>0?"$"+(ST.stake*r.d).toFixed(2):"-",mg=merged(r.k,r.links),href=mg||r.links[0];
+var det=mg?"":(n>1?'<details><summary class="tm">Add each leg</summary>'+legs.map(function(l,i){return'<div class="tm"><a href="'+r.links[i]+'" target="_blank" rel="noopener">'+l.label+'</a></div>'}).join("")+'</details>':"");
+return'<tr'+(r===bk?' class="bestrow"':"")+'><td>'+BN[r.k]+(r===bk?' <span class="tg">Best</span>':"")+'</td><td class="num">'+am(r.d)+'</td><td class="num">'+pay+'</td><td><a class="lg" href="'+href+'" target="_blank" rel="noopener">'+(mg?"Open parlay":"Open")+'</a>'+det+'</td></tr>'}).join("")+'</tbody></table></div>';
+var pm=1,hasP=true;legs.forEach(function(l){if(l.p==null)hasP=false;else pm*=l.p});
+if(hasP&&n>1)h+='<p class="tm" style="margin-top:8px">Model chance about '+(pm*100).toFixed(1)+'% (fair odds '+(pm<.5?"+":"")+frp(pm)+'). This assumes the legs are independent, which same-game legs usually are not.</p>';
+if(sgp)h+='<p class="note" style="margin-top:8px">Same-game parlay: books price how the legs relate, so the final price at the book is often lower than shown here.</p>';
+h+='<p class="tm" style="margin-top:8px">Prices are estimates from the latest data. The sportsbook slip shows the final price, and your state or app may change where links land. 21+ only.</p><button class="btn alt" id="clr" style="margin-top:8px">Clear slip</button>'}
+document.getElementById("slip").innerHTML=h;document.getElementById("fab").textContent="Slip ("+n+")"}
+document.getElementById("pbmain").onclick=function(e){var b;if(b=e.target.closest("[data-leg]"))toggle(b.getAttribute("data-leg"));else if(b=e.target.closest("[data-g]")){ST.gid=b.getAttribute("data-g");ST.mk="All";render()}else if(b=e.target.closest("[data-tab]")){ST.tab=b.getAttribute("data-tab");render()}else if(b=e.target.closest("[data-mk]")){ST.mk=b.getAttribute("data-mk");render()}};
+document.getElementById("slip").onclick=function(e){var b;if(b=e.target.closest("[data-rm]"))toggle(b.getAttribute("data-rm"));else if(e.target.closest("#clr")){SLIP=[];render()}};
+document.getElementById("slip").onchange=function(e){if(e.target.id==="stk"){ST.stake=parseFloat(e.target.value)||0;renderSlip()}};
+document.getElementById("fab").onclick=function(){document.getElementById("slip").scrollIntoView({behavior:"smooth"})};
+var SD=sampleData();load(SD.games,SD.lines,SD.props,true);document.getElementById("pn").textContent="Sample data with made-up lines. Real lines load on the live site.";
+Promise.all([get("games.json"),get("lines.json"),get("board.json")]).then(function(a){if(a[0]&&a[0].games&&a[1]&&a[1].games&&fromReal(a[0],a[1],a[2]))document.getElementById("pn").textContent="Live lines from DraftKings, FanDuel, BetMGM, and Caesars. Only books posting the same line are compared."});
+</script>
+<script src="config.js"></script><script src="auth.js" data-wall></script><script src="menu.js"></script>
+</body>
+</html>

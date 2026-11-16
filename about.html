@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>About | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html" aria-current="page">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap prose">
+<h1>About</h1>
+<h2>What this is</h2>
+<p>Pick &amp; Roll Analytics compares model estimates with sportsbook prices to find NBA player props that look underpriced, and ranks the likeliest outcomes on each night's slate. This page explains, in plain language, how the numbers are made and where they can go wrong.</p>
+<h2>Where the data comes from</h2>
+<p>Player projections use NBA box scores from ESPN, or from NBA.com when it is reachable. Injury statuses come from ESPN's injury report, with manual corrections when news breaks late. Sportsbook lines come from a licensed odds feed. Rest and travel come from the schedule and the location of each arena. Team spreads and totals come from the same odds feed.</p>
+<h2>How the game simulations work</h2>
+<p>Instead of guessing one final score, the computer plays each game 20,000 times and counts what happens.</p>
+<ol class="steps">
+<li><b>Start with the market.</b> The sportsbooks' point spread and total already reflect injuries, rest, matchups, and a lot of betting money, so we treat them as our best starting estimate.</li>
+<li><b>Turn them into expected scores.</b> If the home team is favored by 6.5 and the total is 226, the home team's expected score is (226 + 6.5) / 2 = 116.25 and the away team's is (226 - 6.5) / 2 = 109.75.</li>
+<li><b>Add realistic randomness.</b> We use a spread of roughly 12 points for the margin of victory and roughly 18 points for the total, which are typical sizes for how far NBA games land from their lines. These are approximations, not exact figures.</li>
+<li><b>Play the game 20,000 times.</b> Each simulated game draws a margin and a total and turns them into a score for each team. NBA games can't end tied, so a simulated tie goes to overtime, which we treat as a coin flip. The random draws are seeded, so the same inputs give the same results.</li>
+<li><b>Count the results.</b> The share of simulated games each team wins is its win chance. The average of the simulated scores is the predicted score. We also count how many games were decided by 5 points or fewer and how many reached 230 or more total points.</li>
+</ol>
+<div class="ex"><b>Worked example.</b> Home team favored by 6.5, total 226.
+<ul id="exl"></ul>
+<div id="exsvg"></div>
+<p class="sub" style="font-size:13px;margin-top:4px">Each bar is how often a margin in that range showed up across the simulated games. Dark bars are home wins and gray bars are away wins.</p></div>
+<p><b>What "predicted score" means.</b> It is the average of thousands of simulated games. It is almost never the exact final score, and a game can land far from it.</p>
+<p><b>An important limit.</b> These simulations are centered on the betting market, so they show a realistic range of outcomes around the market's view. They are not an independent opinion of which team is better. Where we add our own view is in the player projections below.</p>
+<h2>How player projections work</h2>
+<p>In basketball, minutes drive almost everything, so each projection is built in two parts: how long a player will be on the floor, and what he does per minute while he's there.</p>
+<ol class="steps">
+<li><b>Project minutes.</b> We start from a player's recent minutes, weighting the last 10 games so each older game counts for 85% as much as the one after it.</li>
+<li><b>Project per-minute production.</b> Points, rebounds, assists, threes, steals, blocks, and turnovers per minute use the same recent weighting, pulled toward the player's longer record so a hot week doesn't carry too far.</li>
+<li><b>Adjust for pace and the opponent.</b> Faster games mean more possessions and more stats. We also compare what the opposing defense allows in each stat, per 100 possessions, against the league average, and move the projection halfway toward that difference.</li>
+<li><b>Handle injuries and role changes.</b> Players listed Out or Doubtful are removed, and their minutes are spread across the rest of the rotation. If a player's minutes or usage changed in recent games, we nudge the projection, by at most 20%. These show up as "Role up" and "Role down" tags.</li>
+<li><b>Set the range.</b> We blend how much the player's own results have varied with a typical amount of variation for that stat, so a few games don't make the range too narrow or too wide.</li>
+</ol>
+<p>A projection is treated as the middle of a bell-shaped range, and the chance of clearing a line like 24.5 points or 2.5 threes is the share of that range above it. Double-double and triple-double chances combine the chance of reaching 10 in each of points, rebounds, and assists. That treats the three as independent, which is a simplification: a player who plays more minutes tends to fill every column at once.</p>
+<h2>How edge and fair value are calculated</h2>
+<ul class="steps">
+<li><b>Fair value</b> is the price with no sportsbook margin, converted from the model's chance. A 60% chance is fair at about -150.</li>
+<li><b>Our chance</b> on the Prop Board is not the raw projection. We first widen the range by 12% of the projection to allow for the model's own error. Then we blend it with the sportsbook's price after removing the book's margin: 40% model, 60% market. Betting lines are sharp, so this keeps a projection that looks far off from turning straight into a huge edge.</li>
+<li><b>Edge</b> is that blended chance minus the chance implied by a book's price. A positive edge means the book pays more than we think the bet is worth.</li>
+<li><b>Line shopping and parlays</b> only compare books that post the same line. Parlay prices multiply the legs together, but sportsbooks price same-game parlays differently because the legs are related, so the final price at the book is often lower.</li>
+</ul>
+<h2>Rest, travel, and fantasy</h2>
+<p>The Rest &amp; Travel page counts each team's days off, back-to-backs, games in the last four nights, miles traveled since its last game, and time zones crossed, and notes visits to Denver and Utah, where the altitude is highest. Once enough history is loaded, it will also compare those situations with how past games in similar spots finished against the spread and the total. The DFS Optimizer turns the projections into DraftKings and FanDuel fantasy points using each site's scoring, and picks the highest-scoring lineups that fit the salary cap and position rules.</p>
+<h2>What the numbers can't do</h2>
+<ul class="steps">
+<li>They don't know about late scratches, rest days announced near tip-off, or a coach shortening the rotation. NBA injury news often breaks within an hour of tip.</li>
+<li>Blowouts cut starters' minutes, which the bell-shaped ranges only partly capture.</li>
+<li>Large edges often mean the model is missing something the market knows. Check the news before acting.</li>
+<li>Early in the season, data is thin and roles are still settling.</li>
+<li>Every prop the board flags at a 2% edge or more is logged before tip-off and graded after the game, so the method's real record builds up over the season.</li>
+<li>Nothing here is a guarantee or financial advice.</li>
+</ul>
+<h2>Play responsibly</h2>
+<p>Only bet what you can afford to lose, and only where it's legal. 21+. If gambling is a problem for you or someone you know, call 1-800-GAMBLER.</p>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script>
+var g=gameStats(6.5,226),ho=1-cdf((114.5-g.exp_home)/SSD),ao=1-cdf((114.5-g.exp_away)/SSD),w10=1-cdf((9.5-6.5)/MSD);
+document.getElementById("exl").innerHTML='<li>Predicted score: home '+g.exp_home.toFixed(1)+', away '+g.exp_away.toFixed(1)+'.</li><li>Home win chance: '+Math.round(g.win_home*100)+'%. Chance the game is decided by 5 or fewer: '+Math.round(g.close*100)+'%. Chance of 230 or more total points: '+Math.round(g.hi230*100)+'%.</li><li>Chance the home team scores 115 or more: '+Math.round(ho*100)+'%. Chance the away team does: '+Math.round(ao*100)+'%. Chance the home team wins by 10 or more: '+Math.round(w10*100)+'%.</li>';
+document.getElementById("exsvg").innerHTML=hist(g.margin_hist,MB,0,function(e){return e>=0?"var(--ink)":"var(--mute)"},"Simulated margins for an example game where the home team is favored by 6.5");
+</script>
+<script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>
+</body>
+</html>

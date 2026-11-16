@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pricing | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html" aria-current="page">Pricing</a></nav></aside>
+<div class="wrap">
+<h1>Plans</h1>
+<p class="sub">Secure checkout and billing are handled by Whop. Monthly plans cancel any time from your Whop account.</p>
+<p class="note" id="nd" hidden>You are logged in, but this account has no active plan yet. Pick a plan below, then log in again.</p>
+<div class="ptg" id="tg"><button data-p="monthly" aria-pressed="true">Monthly</button><button data-p="season" aria-pressed="false">Season pass</button></div>
+<div class="plans">
+<article class="plan"><h2>Free</h2><div class="pr">$0</div><span class="sub">No account needed</span>
+<ul><li>Homepage and game sims</li><li>About and methods</li><li>Rest &amp; Travel</li><li>Sample data on the tools</li></ul>
+<a class="btn alt" href="index.html">Keep browsing</a></article>
+<article class="plan pro"><h2>Pro</h2><div class="pr"><span id="pp"></span> <small id="pu">per month</small></div><span class="sub" id="pn">&nbsp;</span>
+<ul><li>Full Prop Board with line shopping</li><li>Most Probable board with fair values</li><li>Parlay Builder with book comparison</li><li>DFS Optimizer with nightly slates</li><li>CLV tracker</li></ul>
+<a class="btn" id="sub" href="#" rel="noopener">Subscribe</a></article>
+</div>
+<p class="sub">Already a member? <a id="mg" href="https://whop.com/@me/settings/orders/" rel="noopener">Manage your membership on Whop</a></p>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="config.js"></script>
+<script>(function(){var C=window.OT||{whop:{},price:{}},cur="monthly";
+function draw(){var u=C.whop[cur],a=document.getElementById("sub");document.getElementById("pp").textContent=C.price[cur]||"";
+document.getElementById("pu").textContent=cur==="monthly"?"per month":"one time";document.getElementById("pn").innerHTML=cur==="season"&&C.price.seasonNote?C.price.seasonNote:"&nbsp;";
+if(u){a.href=u;a.textContent="Subscribe";a.removeAttribute("aria-disabled")}else{a.href="#";a.textContent="Coming soon";a.setAttribute("aria-disabled","true")}
+[].forEach.call(document.querySelectorAll("#tg button"),function(b){b.setAttribute("aria-pressed",String(b.getAttribute("data-p")===cur))})}
+document.getElementById("tg").onclick=function(e){var b=e.target.closest("[data-p]");if(!b)return;cur=b.getAttribute("data-p");draw()};
+if(C.whop.manage)document.getElementById("mg").href=C.whop.manage;if(/needs=1/.test(location.search))document.getElementById("nd").hidden=false;draw()})();</script>
+<script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>
+</body>
+</html>

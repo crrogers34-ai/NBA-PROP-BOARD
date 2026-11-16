@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Login | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="dfs-optimizer.html">DFS Optimizer</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap prose">
+<h1>Log in</h1>
+<p class="note" id="er" hidden>That login did not go through. Please try again.</p>
+<p class="sub">Log in with your Whop account to unlock your plan. To change payment details or cancel, use your <a href="https://whop.com/hub/" rel="noopener">Whop account</a>.</p>
+<p><a class="btn" id="lg" href="/api/login" rel="noopener">Log in with Whop</a></p>
+<p class="sub">Not a member yet? <a href="pricing.html">See plans</a></p>
+</div>
+<script>if(/err=/.test(location.search))document.getElementById("er").hidden=false</script>
+<script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>
+</body>
+</html>
