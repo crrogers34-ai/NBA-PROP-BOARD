@@ -1,11 +1,11 @@
-/* Layout: same shell as Off Tackle Analytics (slide-out menu, single-page routes), hardwood orange accent for the NBA sibling */
-:root{--bg:#F1EFEC;--card:#fff;--ink:#1B1F3B;--mute:#5E6478;--line:#DAD6D0;--pos:#0B8A5F;--neg:#C93C3C;--flag:#EE8A2E;--onflag:#1B1F3B;
+/* Layout: same shell as Off Tackle Analytics. Hardwood palette: warm maple, near-black ink, basketball orange. */
+:root{--bg:#F4EDE3;--card:#FFFCF7;--ink:#1C1712;--mute:#6B6157;--line:#E2D8CB;--pos:#1B7F4F;--neg:#C2412D;--flag:#E2662B;--onflag:#1C1712;
 --display:"Barlow Condensed","Arial Narrow",sans-serif;--body:"Source Sans 3",system-ui,sans-serif;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
 img{max-width:100%}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#13151F;--card:#1D2030;--ink:#ECEEF5;--mute:#A0A6BA;--line:#33374B;--pos:#35C58D;--neg:#F07777;--flag:#F39A45;--onflag:#1B1F3B;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#13151F;--card:#1D2030;--ink:#ECEEF5;--mute:#A0A6BA;--line:#33374B;--pos:#35C58D;--neg:#F07777;--flag:#F39A45;--onflag:#1B1F3B;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15110D;--card:#211B15;--ink:#F3ECE3;--mute:#B3A796;--line:#3A3027;--pos:#4CC38A;--neg:#F0806B;--flag:#F07A3E;--onflag:#15110D;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15110D;--card:#211B15;--ink:#F3ECE3;--mute:#B3A796;--line:#3A3027;--pos:#4CC38A;--neg:#F0806B;--flag:#F07A3E;--onflag:#15110D;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--body)}
 a{color:var(--ink)}
