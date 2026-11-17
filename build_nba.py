@@ -59,7 +59,7 @@ RATE_PRIOR_K = 8.0      # current-season per-minute weight = n / (n + 8)
 OPP_SHRINK_K = 10.0     # opponent factors shrink toward league average by g / (g + 10)
 ROLE_CAP = 0.20         # role nudge is capped at +/- 20%
 TEAM_MINUTES = 240.0
-MAX_MINUTES = 40.0
+MAX_MINUTES = 38.0
 ROTATION_MIN = 6.0      # players projected under this are left out of the minutes budget
 STALE_DAYS = 10         # no game in this many days (with team games played) = treat as out
 # Edge math shared with prop-board.html: widen the spread for projection error, then blend the
@@ -452,6 +452,36 @@ def wavg(vals, ws):
     return sum(v * w for v, w in zip(vals, ws)) / s if s else 0.0
 
 
+def fit_minutes(R):
+    """Make a team's projected minutes add up to 240.
+    Too many minutes (usually a deep bench): take them mostly from the bench, so a 36-minute
+    star keeps his minutes. Too few (injuries): hand them out in proportion to current minutes,
+    up to MAX_MINUTES each."""
+    for _ in range(12):
+        total = sum(p["min"] for p in R)
+        gap = total - TEAM_MINUTES
+        if abs(gap) < 0.5:
+            return
+        if gap > 0:
+            w = {id(p): max(0.0, 36.0 - p["min"]) for p in R if p["min"] > 0}
+            W = sum(w.values())
+            if W <= 0:
+                for p in R:
+                    p["min"] *= TEAM_MINUTES / total
+                return
+            for p in R:
+                if id(p) in w:
+                    p["min"] = max(0.0, p["min"] - gap * w[id(p)] / W)
+        else:
+            free = [p for p in R if p["min"] < MAX_MINUTES]
+            fs = sum(p["min"] for p in free)
+            if not free or fs <= 0:
+                return
+            f = (fs - gap) / fs
+            for p in free:
+                p["min"] = min(MAX_MINUTES, p["min"] * f)
+
+
 def project_players(cur_logs, prev_logs, roster, slate_teams, ratings, opp_of, inj, slate_day):
     by_cur, by_prev = defaultdict(list), defaultdict(list)
     for g in cur_logs:
@@ -528,18 +558,7 @@ def project_players(cur_logs, prev_logs, roster, slate_teams, ratings, opp_of, i
     for team in slate_teams:
         R = [p for p in P if p["t"] == team and p["min"] >= ROTATION_MIN]
         before = {id(p): p["min"] for p in R}
-        for _ in range(8):
-            capped = [p for p in R if p["min"] >= MAX_MINUTES]
-            free = [p for p in R if p["min"] < MAX_MINUTES]
-            rest = TEAM_MINUTES - sum(p["min"] for p in capped)
-            fs = sum(p["min"] for p in free)
-            if not free or fs <= 0:
-                break
-            f = rest / fs
-            for p in free:
-                p["min"] = min(MAX_MINUTES, p["min"] * f)
-            if abs(sum(p["min"] for p in R) - TEAM_MINUTES) < 0.5:
-                break
+        fit_minutes(R)
         for p in R:
             if not p["role"] and before[id(p)] >= 8 and p["min"] / before[id(p)] - 1 >= 0.15:
                 p["role"] = "Role up"
