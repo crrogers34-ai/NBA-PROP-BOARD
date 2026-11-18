@@ -6,6 +6,9 @@
 var NICK={ATL:"Hawks",BOS:"Celtics",BKN:"Nets",CHA:"Hornets",CHI:"Bulls",CLE:"Cavaliers",DAL:"Mavericks",DEN:"Nuggets",DET:"Pistons",GSW:"Warriors",HOU:"Rockets",IND:"Pacers",LAC:"Clippers",LAL:"Lakers",MEM:"Grizzlies",MIA:"Heat",MIL:"Bucks",MIN:"Timberwolves",NOP:"Pelicans",NYK:"Knicks",OKC:"Thunder",ORL:"Magic",PHI:"76ers",PHX:"Suns",POR:"Trail Blazers",SAC:"Kings",SAS:"Spurs",TOR:"Raptors",UTA:"Jazz",WAS:"Wizards"};
 var Q_LEN=720,OT_LEN=300;
 var TWO=[["driving layup",0,4],["layup",0,3],["dunk",0,2],["floating jump shot",6,12],["pullup jump shot",12,19],["turnaround hook shot",4,9],["step back jump shot",14,20],["cutting layup",0,2],["jump shot",15,21]];
+/* weights over TWO for bigs and for guards; everyone else picks evenly */
+var BIG=[1,2,3,.4,.4,2.2,.2,2,.4],GUARD=[2.2,1,.5,1.6,2,.2,1.6,.5,1.4];
+var CAT={"driving layup":"Layup","layup":"Layup","cutting layup":"Layup","dunk":"Dunk","floating jump shot":"Floater","pullup jump shot":"Jump shot","step back jump shot":"Jump shot","jump shot":"Jump shot","turnaround hook shot":"Hook shot"};
 var THREE=[["three point jumper",24,27],["pullup three",25,28],["step back three",25,29],["corner three",22,23]];
 function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function nick(t){return NICK[t]||t}
@@ -17,14 +20,17 @@ function qName(p){return p<=4?["1st","2nd","3rd","4th"][p-1]+" quarter":(p===5?"
 
 function team(code,players){
   var P=players.filter(function(p){return p.t===code&&p.proj&&(p.min||0)>=1}).map(function(p){var j=p.proj;
-    return{n:p.n,min:Math.min(p.min,40),pts:j.Points||0,reb:j.Rebounds||0,ast:j.Assists||0,tpm:j["3PM"]||0,stl:j.Steals||0,blk:j.Blocks||0,tov:j.Turnovers||0}})
+    return{n:p.n,start:!!p.start,min:Math.min(p.min,40),pts:j.Points||0,reb:j.Rebounds||0,ast:j.Assists||0,tpm:j["3PM"]||0,stl:j.Steals||0,blk:j.Blocks||0,tov:j.Turnovers||0}})
     .sort(function(a,b){return b.min-a.min});
   var used=P.reduce(function(a,p){return a+p.min},0);
   if(used>240){P.forEach(function(p){p.min*=240/used});used=240}
   var left=240-used;
   if(left>2)P.push({n:"Bench",min:left,pts:.36*left,reb:.17*left,ast:.08*left,tpm:.04*left,stl:.03*left,blk:.02*left,tov:.05*left,bench:true});
   P.forEach(function(p){var m=Math.max(p.min,1);
-    p.r={two:Math.max(.05,(p.pts-3*p.tpm)/m),three:Math.max(.005,p.tpm/m),reb:p.reb/m,ast:p.ast/m,stl:p.stl/m,blk:p.blk/m,tov:p.tov/m}});
+    p.r={two:Math.max(.05,(p.pts-3*p.tpm)/m),three:Math.max(.005,p.tpm/m),reb:p.reb/m,ast:p.ast/m,stl:p.stl/m,blk:p.blk/m,tov:p.tov/m};
+    p.kw=p.r.reb>.24&&p.r.three<.045?BIG:(p.r.ast>.15||p.r.three>.07?GUARD:null)});
+  var st=P.filter(function(p){return p.start&&!p.bench});
+  P.starters=(st.length>=5?st:P.filter(function(p){return!p.bench})).slice(0,5);
   var tov=P.reduce(function(a,p){return a+p.tov},0),tpm=P.reduce(function(a,p){return a+p.tpm},0);
   return{code:code,P:P,pTO:Math.min(.17,Math.max(.10,tov/100)),f3:Math.min(.5,Math.max(.32,(tpm/.36)/86)),k:1};
 }
@@ -32,16 +38,16 @@ function team(code,players){
 function Engine(cfg){
   var AWAY=cfg.away,HOME=cfg.home,T={};T[AWAY]=team(AWAY,cfg.players);T[HOME]=team(HOME,cfg.players);
   var TARGET={};TARGET[AWAY]=cfg.targetAway;TARGET[HOME]=cfg.targetHome;
-  function play(seed,log){
+  function play(seed,log,opt){opt=opt||{};
     var R=rng(seed),S={},ev=[],flow=[],line={},score={};line[AWAY]=[];line[HOME]=[];score[AWAY]=0;score[HOME]=0;
     [AWAY,HOME].forEach(function(c){T[c].P.forEach(function(p){S[c+"|"+p.n]={n:p.n,min:0,pts:0,reb:0,ast:0,stl:0,blk:0,tov:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,bench:p.bench}})});
-    var on={},period=1,clock=Q_LEN,elapsed=0,nextSub=0,off=R()<.5?AWAY:HOME,firstOff=off;
+    var tipHome=opt.tipHome==null?.5:opt.tipHome,on={},period=1,clock=Q_LEN,elapsed=0,nextSub=0,off=R()<tipHome?HOME:AWAY,firstOff=off,first=null;
     function st(c,p){return S[c+"|"+p.n]}
     function addPts(c,n){score[c]+=n;line[c][period-1]=(line[c][period-1]||0)+n}
     function say(c,text,scoring){if(log)ev.push({p:period,ck:clock,t:c,x:text,sc:!!scoring,a:score[AWAY],h:score[HOME]})}
     function rotate(force){var margin=Math.abs(score[HOME]-score[AWAY]);
       [AWAY,HOME].forEach(function(c){var P=T[c].P,choose,real=P.filter(function(p){return!p.bench});
-        if(force&&(period===1||period===3)&&real.length>=5)choose=real.slice(0,5);
+        if(force&&(period===1||period===3)&&real.length>=5)choose=P.starters;
         else if(period>=4&&clock<=300&&margin<=10&&real.length>=5)choose=real.slice(0,5);
         else if(period>=4&&clock<=360&&margin>=22)choose=P.slice().sort(function(a,b){return(a.bench?-1:0)-(b.bench?-1:0)||a.min-b.min}).slice(0,5);
         else{var horizon=Math.min(elapsed+240,2880);choose=P.map(function(p){return{p:p,need:p.min*60*horizon/2880-st(c,p).min*60+R()*90}}).sort(function(a,b){return b.need-a.need}).slice(0,5).map(function(x){return x.p})}
@@ -74,14 +80,16 @@ function Engine(cfg){
         var isThree=R()<tm.f3,sh=pick(R,O,function(p){return isThree?p.r.three:p.r.two}),ss=st(off,sh);
         var lead=Math.max(-20,Math.min(20,score[def]-score[off]));
         var q=(isThree?.355:.535)*tm.k*(second?1.06:1)*(1+.006*lead),make=R()<q;
-        var kind=isThree?THREE[between(R,0,THREE.length-1)]:TWO[between(R,0,TWO.length-1)],ft=between(R,kind[1],kind[2]);
+        var kind=isThree?THREE[between(R,0,THREE.length-1)]:(sh.kw?pick(R,TWO,function(k){return sh.kw[TWO.indexOf(k)]}):TWO[between(R,0,TWO.length-1)]),ft=between(R,kind[1],kind[2]);
         var desc=(ft>=3?ft+"-foot ":"")+kind[0];
         ss.fga++;if(isThree)ss.tpa++;
         if(make){var pts=isThree?3:2;ss.fgm++;if(isThree)ss.tpm++;ss.pts+=pts;addPts(off,pts);
           var helper=null;if(R()<(isThree?.82:.55)){helper=pick(R,O.filter(function(p){return p!==sh}),function(p){return p.r.ast+.003});st(off,helper).ast++}
           var txt=sh.n+" makes "+desc+(helper?" ("+helper.n+" assists)":"");
           if(!isThree&&R()<.035){ss.fta++;if(R()<.78){ss.ftm++;ss.pts++;addPts(off,1);txt+=", and one"}else txt+=", misses the and-one"}
-          say(off,txt,true);break}
+          say(off,txt,true);
+          if(opt.stopFirst){first={n:sh.n,t:off,bench:!!sh.bench,cat:isThree?"Three":(CAT[kind[0]]||"Jump shot"),desc:desc,assist:helper?helper.n:null,and1:/and one$/.test(txt)}}
+          break}
         if(!isThree&&R()<.085){var bl=pick(R,D,function(p){return p.r.blk+.003});st(def,bl).blk++;say(off,bl.n+" blocks "+sh.n+"'s "+desc)}
         else say(off,sh.n+" misses "+desc);
         if(R()<.235){var orb=pick(R,O,function(p){return p.r.reb+.01});st(off,orb).reb++;say(off,orb.n+" offensive rebound");second=true;tPoss+=between(R,2,7);continue}
@@ -90,8 +98,9 @@ function Engine(cfg){
       O.forEach(function(p){st(off,p).min+=tPoss/60});D.forEach(function(p){st(def,p).min+=tPoss/60});
       if(log){var nE=ev.length-evStart;for(var j=0;j<nE;j++)ev[evStart+j].ck=Math.round(clock0-tPoss*(j+1)/nE)}
       flow.push([elapsed,score[HOME]-score[AWAY]]);
+      if(first){first.ck=clock;first.p=period;break}
       off=def}
-    return{seed:seed,score:score,line:line,ev:ev,flow:flow,S:S,periods:period}}
+    return{seed:seed,score:score,line:line,ev:ev,flow:flow,S:S,periods:period,first:first,firstOff:firstOff}}
   function calibrate(){for(var it=0;it<4;it++){var sum={},n=300;sum[AWAY]=0;sum[HOME]=0;
     for(var i=0;i<n;i++){var g=play(1000+i+it*7919,false);sum[AWAY]+=g.score[AWAY];sum[HOME]+=g.score[HOME]}
     [AWAY,HOME].forEach(function(c){T[c].k*=Math.pow(TARGET[c]/(sum[c]/n),.85)})}}
@@ -186,5 +195,5 @@ function mount(root,cfg){
         +box(Math.round(tot/n*100)+"%","over "+cfg.total+" total points")+box(Math.round(cl/n*100)+"%","decided by 5 or fewer")+box(Math.round(ot/n*100)+"%","go to overtime")})()}
   setTimeout(function(){E.calibrate();newGame(10000+(Math.abs(String(A+H+cfg.total).split("").reduce(function(s,c){return s*31+c.charCodeAt(0)|0},7))%89999));setTimeout(check,50)},20);
 }
-window.PBP={mount:mount};
+window.PBP={mount:mount,Engine:Engine,nick:nick};
 })();

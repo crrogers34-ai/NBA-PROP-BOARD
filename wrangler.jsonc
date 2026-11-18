@@ -6,6 +6,6 @@
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/board.json", "/probable.json", "/lines.json", "/trends.json", "/picks_log.json", "/slates/*"]
+    "run_worker_first": ["/api/*", "/board.json", "/probable.json", "/lines.json", "/trends.json", "/picks_log.json", "/firstbasket.json"]
   }
 }

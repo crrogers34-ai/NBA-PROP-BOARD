@@ -292,6 +292,30 @@ def parse_main(ev, abbr):
     return L
 
 
+FIRST_BASKET = "player_first_basket"
+
+
+def parse_first_basket(ev_odds):
+    """-> {player name: {book: {"odds": american, "link": url}}} for the first-basket-scorer market."""
+    out = {}
+    for bm in ev_odds.get("bookmakers", []):
+        bk = BOOKS.get(bm["key"])
+        if not bk:
+            continue
+        for mkt in bm.get("markets", []):
+            if mkt.get("key") != FIRST_BASKET:
+                continue
+            for o in mkt.get("outcomes", []):
+                nm, desc = o.get("name") or "", o.get("description") or ""
+                if nm.lower() == "no":
+                    continue
+                who = desc if (desc and nm.lower() in ("yes", "")) else (nm or desc)
+                if not who or o.get("price") is None:
+                    continue
+                out.setdefault(who, {})[bk] = {"odds": o["price"], "link": outcome_link(o, mkt, bm, bk)}
+    return out
+
+
 def parse_props(ev_odds):
     """-> {(player_norm, market): {"name":..., "books": {bk: {line, ov, un, lov, lun}}}}"""
     out = {}
@@ -378,7 +402,8 @@ def clean_logs(rows):
         if not m:
             continue
         g = {"pid": r["PLAYER_ID"], "name": r["PLAYER_NAME"], "team": r["TEAM_ABBREVIATION"], "gid": str(r["GAME_ID"]),
-             "date": str(r["GAME_DATE"])[:10], "home": m.group(2) == "vs.", "opp": m.group(3), "MIN": to_min(r.get("MIN"))}
+             "date": str(r["GAME_DATE"])[:10], "home": m.group(2) == "vs.", "opp": m.group(3), "MIN": to_min(r.get("MIN")),
+             "START": r.get("START")}
         for c in ("PTS", "REB", "AST", "FG3M", "STL", "BLK", "TOV", "FGA", "FTA", "OREB"):
             g[c] = float(r.get(c) or 0)
         out.append(g)
@@ -487,6 +512,33 @@ def fit_minutes(R):
             f = (fs - gap) / fs
             for p in free:
                 p["min"] = min(MAX_MINUTES, p["min"] * f)
+
+
+def mark_starters(P, cur_logs):
+    """p["start"] = started his team's most recent game (ESPN marks starters). Starters who are out
+    are replaced by the highest-minute healthy players; without starter data, the top five by minutes."""
+    last = {}
+    for g in cur_logs:
+        if g["date"] > last.get(g["team"], ("", ""))[0]:
+            last[g["team"]] = (g["date"], g["gid"])
+    started = defaultdict(set)
+    known = set()
+    for g in cur_logs:
+        if last.get(g["team"], ("", ""))[1] == g["gid"] and g.get("START") is not None:
+            known.add(g["team"])
+            if g["START"]:
+                started[g["team"]].add(g["pid"])
+    for t in {p["t"] for p in P}:
+        R = sorted([p for p in P if p["t"] == t], key=lambda p: -p["min"])
+        S = [p for p in R if p["pid"] in started[t]] if t in known else []
+        for p in R:
+            if len(S) >= 5:
+                break
+            if p not in S:
+                S.append(p)
+        ids = {id(p) for p in S[:5]}
+        for p in R:
+            p["start"] = id(p) in ids
 
 
 def project_players(cur_logs, prev_logs, roster, slate_teams, ratings, opp_of, inj, slate_day):
@@ -812,6 +864,7 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
 
     log("Projections")
     P = project_players(cur_logs, prev_logs, roster, slate_teams, ratings, opp_of, inj, slate_day)
+    mark_starters(P, cur_logs)
     by_name = {norm(p["n"]): p for p in P}
     game_of = {}
     for g in games:
@@ -827,6 +880,17 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
             props.update(parse_props(ev))
         except Exception as ex:
             log(f"  props for {g['away']} at {g['home']} skipped: {ex}")
+
+    log("Odds: first basket")
+    fb_odds, fb_n = {}, 0
+    for g in games:
+        try:
+            ev = odds_fn(f"/events/{g['event']}/odds", key, markets=FIRST_BASKET)
+            fb_odds[g["id"]] = parse_first_basket(ev)
+            fb_n += len(fb_odds[g["id"]])
+        except Exception as ex:
+            log(f"  first basket odds for {g['away']} at {g['home']} skipped: {ex}")
+    log(f"  {fb_n} first basket prices across {len(fb_odds)} games")
 
     board, unmatched = [], set()
     for (pn, m), v in props.items():
@@ -863,7 +927,7 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     for p in sorted(P, key=lambda x: -x["proj"]["Points"]):
         if p["min"] < 12:
             continue
-        row = {"n": p["n"], "t": p["t"], "o": p["o"], "inj": p["inj"], "min": round(p["min"], 1),
+        row = {"n": p["n"], "t": p["t"], "o": p["o"], "inj": p["inj"], "min": round(p["min"], 1), "start": p.get("start", False),
                "proj": {st: round(p["proj"][st], 2) for st in STATS}, "dd": round(p["dd"], 4), "td": round(p["td"], 4), "bo": {}}
         for k, (m, line) in THR.items():
             row[k] = round(p_over(p["proj"][m], p["sd"][m], line), 4)
@@ -944,6 +1008,23 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
                            "away_rest": rest_info(g["away"], tg_cur, slate_day, g["home"]),
                            "home_rest": rest_info(g["home"], tg_cur, slate_day, g["home"])})
 
+    fb_games = []
+    for g in games:
+        pl = [{"n": p["n"], "t": p["t"], "min": round(p["min"], 1), "start": p.get("start", False), "inj": p["inj"],
+               "proj": {st: round(p["proj"][st], 3) for st in STATS}}
+              for p in sorted(P, key=lambda x: -x["min"]) if p["t"] in (g["home"], g["away"]) and p["min"] >= 1]
+        names = {norm(x["n"]): x["n"] for x in pl}
+        odds, unmatched = {}, []
+        for who, books in (fb_odds.get(g["id"]) or {}).items():
+            k = names.get(norm(who))
+            if k:
+                odds[k] = books
+            else:
+                unmatched.append({"n": who, "books": books})
+        fb_games.append({"id": g["id"], "away": g["away"], "home": g["home"], "when": g["when"], "kick": g["kick"],
+                         "spread": g["spread"], "total": g["total"], "exp_home": g["exp_home"], "exp_away": g["exp_away"],
+                         "win_home": g["win_home"], "players": pl, "odds": odds, "unmatched": unmatched})
+
     for g in games:
         g.pop("_win10"), g.pop("_pts115"), g.pop("event")
 
@@ -993,16 +1074,11 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
         "trends.json": {"generated": now, "up": up, "down": down},
         "rest.json": {"generated": now, "games": rest_games},
         "injuries.json": {"generated": now, "teams": inj_teams},
+        "firstbasket.json": {"generated": now, "games": fb_games},
     }
     for name, data in files.items():
         with open(os.path.join(args.out, name), "w") as f:
             json.dump(data, f, separators=(",", ":"))
-    sd = os.path.join(args.out, "slates")
-    if os.path.isdir(sd):
-        sl = sorted(x for x in os.listdir(sd) if x.lower().endswith(".csv"))
-        with open(os.path.join(sd, "index.json"), "w") as f:
-            json.dump({"files": sl}, f, indent=1)
-        log(f"Listed {len(sl)} DFS slate file(s) in slates/index.json")
     log(f"Wrote {', '.join(files)} to {os.path.abspath(args.out)}")
     return files
 

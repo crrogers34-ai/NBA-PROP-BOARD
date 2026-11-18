@@ -3,7 +3,7 @@
 // server with a signed cookie), then the files lock. Members always get everything.
 import { enforcing, getSession, sign, verify, getCookie, cookieStr } from "./_lib.js";
 
-const GATED = /^\/(board|probable|lines|trends|picks_log)\.json$|^\/slates\//;
+const GATED = /^\/(board|probable|lines|trends|picks_log|firstbasket)\.json$/;
 const DAY = 86400;
 
 export async function onRequest({ request, env, next }) {

@@ -114,6 +114,7 @@ def parse_summary(j):
                 ath = a.get("athlete") or {}
                 row = {"PLAYER_ID": "E" + str(ath.get("id")), "PLAYER_NAME": ath.get("displayName") or "",
                        "POS": ((ath.get("position") or {}).get("abbreviation") or ""),
+                       "START": bool(a.get("starter")),
                        "TEAM_ABBREVIATION": t, "GAME_ID": "E" + gid, "GAME_DATE": gdate,
                        "MATCHUP": f"{t} vs. {opp}" if home else f"{t} @ {opp}"}
                 for k, v in zip(keys, st):
@@ -147,6 +148,12 @@ def season_rows(label, cache_dir, today, prev=False, workers=8):
     """All player game rows for a season label like '2026-27', played before `today` (ET)."""
     path = os.path.join(cache_dir, f"espn_{label}.json")
     c = _load(path)
+    if c.get("v", 1) < 2:
+        # older caches lack who started; fetch the last 10 days again so the latest starters are known
+        cutoff = (today - timedelta(days=10)).isoformat()
+        c["games"] = {k: v for k, v in c["games"].items() if not v or v[0]["GAME_DATE"] < cutoff}
+        c["done_dates"] = [d for d in c["done_dates"] if d < cutoff]
+        c["v"] = 2
     done = set(c["done_dates"])
     start, end = season_window(label, today - timedelta(days=1), prev)
     days = []

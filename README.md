@@ -10,7 +10,7 @@ The NBA sister site to Off Tackle Analytics. It has the same pieces: separate pa
 | `prop-board.html` | Every prop ranked by edge, with line shopping and the CLV tracker |
 | `most-probable.html` | Likeliest team and player outcomes, with fair odds next to the best price |
 | `parlay-builder.html` | Build a slip and compare the parlay price at each book |
-| `dfs-optimizer.html` | DraftKings and FanDuel lineups from the projections |
+| `first-basket.html` | Simulate the opening tip of any game, with fair first basket odds next to each sportsbook |
 | `rest-travel.html` | Back-to-backs, days of rest, road miles, and altitude for every game |
 | `game.html` | One game: simulated score, injury report, margin and total charts, projected box score, play-by-play sim, rest |
 | `about.html`, `pricing.html`, `login.html`, `signup.html` | Method, plans, and Whop login |
@@ -18,10 +18,9 @@ The NBA sister site to Off Tackle Analytics. It has the same pieces: separate pa
 | `build_nba.py`, `espn_source.py` | Builds all the data files (see below) |
 | `.github/workflows/update-board.yml` | Runs `build_nba.py` twice a day and commits the data files |
 | `worker.js`, `wrangler.jsonc`, `functions/` | Cloudflare hosting and the members-only lock |
-| `slates/` | DraftKings and FanDuel salary files for the DFS Optimizer |
 | `injuries.csv` | Your own injury overrides (`player,status`) |
 
-The data script writes `board.json`, `probable.json`, `games.json`, `lines.json`, `trends.json`, `rest.json`, `injuries.json`, `picks_log.json` and `results.json`. Until the first run, every page shows clearly labeled sample data.
+The data script writes `board.json`, `probable.json`, `games.json`, `lines.json`, `trends.json`, `rest.json`, `injuries.json`, `firstbasket.json`, `picks_log.json` and `results.json`. Until the first run, every page shows clearly labeled sample data.
 
 ## Setup
 
@@ -39,13 +38,12 @@ The site is fully open until you turn the lock on. It works the same way as the 
 3. In the Cloudflare project, add these variables (Settings > Variables and secrets): `WHOP_CLIENT_ID`, `WHOP_API_KEY`, `WHOP_PRODUCT_ID`, `SESSION_SECRET` (any long random string), and `WHOP_CLIENT_SECRET` if your Whop app has one. `WHOP_PRODUCT_ID` can hold several IDs separated by commas, for example a bundle that covers both the NFL and NBA sites.
 4. Visit `/api/ping` on the site: it lists any setting names still missing.
 
-Once all four are set, the board, probable, lines, trends and picks files and the DFS slates are members-only after a short free preview. The pages themselves, game sims and Rest & Travel stay public.
+Once all four are set, the board, probable, lines, trends, picks and first basket files are members-only after a short free preview. The pages themselves, game sims and Rest & Travel stay public.
 
 ## Daily routine
 
-- The workflow runs about **2 PM and 6 PM Eastern**. To change the times, edit the `cron` lines in `update-board.yml` (they are in UTC). Each run uses about 3 Odds API credits plus about 5 per game, roughly 40 to 60 on a full slate, from the same credit pool as the NFL site.
+- The workflow runs about **2 PM and 6 PM Eastern**. To change the times, edit the `cron` lines in `update-board.yml` (they are in UTC). Each run uses about 3 Odds API credits plus about 6 per game (5 prop markets and first basket), roughly 40 to 60 on a full slate, from the same credit pool as the NFL site.
 - **Injuries** come from ESPN's injury report automatically. To override one, add a line to `injuries.csv`, for example `Joel Embiid,Out`, and commit it. Out and Doubtful players are removed from the projections; other statuses are tagged.
-- **DFS slates:** download the DraftKings or FanDuel salary CSV for tonight's slate, upload it into `slates/` (for example `DK-Main.csv`), and the next run lists it in the DFS Optimizer. Delete old slates when they're done.
 - **Results:** every prop the board flags at a 2% edge or more is logged before tip-off in `picks_log.json` and graded after the game. `results.json` shows the running record by market and by date.
 
 ## Running it on your own computer

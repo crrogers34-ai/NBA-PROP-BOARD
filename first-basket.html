@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>First Basket Simulator | Pick &amp; Roll Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.fb-ctl{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:6px 0 14px}
+.fb-ctl label{display:grid;gap:4px;font-size:13px;color:var(--mute)}
+.fb-ctl select{min-width:0;max-width:100%}
+.fb-res{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--flag);border-radius:10px;padding:16px 18px;margin:0 0 6px}
+.fb-res.ps-a{border-left-color:var(--away)}.fb-res.ps-h{border-left-color:var(--home)}
+.fb-k{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.fb-who{font:700 clamp(34px,8vw,52px)/1 var(--display);margin:6px 0 4px;text-wrap:balance}
+.fb-how{font-size:17px}.fb-how b{font-weight:600}
+.fb-meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;font-size:14px;color:var(--mute)}
+.fb-tag{font:700 13px var(--display);letter-spacing:.05em}.fb-tag.ps-a{color:var(--away)}.fb-tag.ps-h{color:var(--home)}
+.fb-seq{margin:10px 0 0}
+.fb-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:10px 0 16px}
+.fb-sum>div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.fb-bar{display:grid;grid-template-columns:96px 1fr 48px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.fb-bar i{display:block;height:10px;border-radius:3px;background:var(--flag)}
+.fb-bar .num{text-align:right;font-size:17px}
+.fb-split{display:flex;height:14px;border-radius:4px;overflow:hidden;margin:8px 0 6px}
+.fb-split span{display:block;height:100%}
+.fb-tbl{min-width:760px}
+.fb-tbl th,.fb-tbl td{text-align:right}.fb-tbl th:first-child,.fb-tbl td:first-child{text-align:left}
+.fb-tbl td.best{background:color-mix(in srgb,var(--flag) 20%,transparent);font-weight:700}
+.fb-tbl tr.bench td{opacity:.7}
+.fb-tbl a{color:inherit}
+</style>
+</head>
+<body>
+<header class="top"><button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="side">&#9776;</button><a class="brand" href="index.html">PICK <b>&amp;</b> ROLL ANALYTICS</a><div class="acct"><a href="login.html">Login</a><a class="su" href="pricing.html">Sign up</a></div></header>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="side" id="side" aria-label="Main menu"><nav><a href="index.html">Home</a><a href="prop-board.html">Prop Board</a><a href="most-probable.html">Most Probable</a><a href="parlay-builder.html">Parlay Builder</a><a href="first-basket.html" aria-current="page">First Basket</a><a href="rest-travel.html">Rest &amp; Travel</a><a href="about.html">About</a><a href="pricing.html">Pricing</a></nav></aside>
+<div class="wrap">
+<h1>First Basket Simulator</h1>
+<p class="sub">Pick a game and simulate the opening possessions. Each run plays from the opening tip until someone makes a field goal, using the starters, the player projections, and the betting market. Below it, 20,000 runs set each player's fair odds next to what the sportsbooks pay.</p>
+<p class="note" id="fbNote" hidden></p>
+<div class="fb-ctl">
+<label>Game <select id="fbGame"></select></label>
+<label>Opening tip <select id="fbTip"></select></label>
+<button class="btn" id="fbGo" style="padding:9px 16px">Simulate the first basket</button>
+</div>
+<div id="fbOne"></div>
+
+<h2 class="sec" style="margin-top:22px">First basket odds</h2>
+<div class="fb-sum" id="fbSum"></div>
+<div class="tw"><table class="fb-tbl" id="fbTbl"></table></div>
+<p class="sub" id="fbFoot" style="font-size:13px;margin-top:10px"></p>
+<p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
+</div>
+<script src="sim.js"></script>
+<script src="pbp.js"></script>
+<script>
+(function(){
+var N=20000,BKS=["DK","FD","MGM","CZR"],BN={DK:"DraftKings",FD:"FanDuel",MGM:"BetMGM",CZR:"Caesars"},HOME={DK:"https://sportsbook.draftkings.com",FD:"https://sportsbook.fanduel.com",MGM:"https://sports.betmgm.com",CZR:"https://sportsbook.caesars.com"};
+var DATA=null,SMP=true,G=null,E=null,RES=null,tip=.5;
+function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function nick(t){return PBP.nick(t)}
+function fair(p){if(p<=0)return"-";p=Math.min(p,.995);return p>=.5?String(-Math.round(100*p/(1-p))):"+"+Math.round(100*(1-p)/p)}
+function ev(p,o){var d=o>0?o/100:100/-o;return(p*d-(1-p))*100}
+function mmss(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+("0"+s%60).slice(-2)}
+
+/* sample slate: made-up players and odds */
+function sampleData(){return{generated:null,games:sampleGames().map(function(g){
+  var pl=SPL.filter(function(p){return p.t===g.home||p.t===g.away}).map(function(p){return{n:p.n,t:p.t,min:p.min,inj:p.inj,proj:p.proj}});
+  [g.home,g.away].forEach(function(t){pl.filter(function(p){return p.t===t}).sort(function(a,b){return b.min-a.min}).slice(0,5).forEach(function(p){p.start=true})});
+  return{id:g.id,away:g.away,home:g.home,when:g.when,spread:g.spread,total:g.total,exp_home:g.exp_home,exp_away:g.exp_away,win_home:g.win_home,players:pl,odds:{},unmatched:[]}})}}
+
+function fillGames(){var sel=document.getElementById("fbGame"),want=null;try{want=new URLSearchParams(location.search).get("g")}catch(e){}
+  var L=DATA.games.filter(function(g){return!g.kick||Date.parse(g.kick)>Date.now()-3*36e5});if(!L.length)L=DATA.games;
+  sel.innerHTML=L.map(function(g){return'<option value="'+esc(g.id)+'">'+g.away+" at "+g.home+(g.when?" · "+esc(g.when):"")+'</option>'}).join("");
+  if(want&&L.some(function(g){return g.id===want}))sel.value=want;choose()}
+function choose(){var id=document.getElementById("fbGame").value,same=G&&G.id===id;G=DATA.games.filter(function(g){return g.id===id})[0];
+  var t=document.getElementById("fbTip"),keep=same?t.value:"0.5";
+  t.innerHTML='<option value="0.5">Even (50/50)</option><option value="0">'+esc(nick(G.away))+' win the tip</option><option value="1">'+esc(nick(G.home))+' win the tip</option>';
+  t.value=keep==="0"||keep==="1"?keep:"0.5";tip=+t.value;
+  try{var u=new URL(location.href);u.searchParams.set("g",G.id);history.replaceState(null,"",u)}catch(e){}
+  E=PBP.Engine({away:G.away,home:G.home,targetAway:G.exp_away,targetHome:G.exp_home,players:G.players});
+  document.getElementById("fbOne").innerHTML='<p class="sub">Setting up…</p>';
+  setTimeout(function(){E.calibrate();runMany();one()},10)}
+
+function one(){var r=E.play(Math.floor(Math.random()*1e9),true,{stopFirst:true,tipHome:tip}),f=r.first,side=f.t===G.home?"ps-h":"ps-a";
+  var plays=r.ev.filter(function(e){return e.t}),pre=plays.slice(0,-1);
+  var h='<div class="fb-res '+side+'"><div class="fb-k">First basket</div><div class="fb-who">'+esc(f.n==="Bench"?nick(f.t)+" bench player":f.n)+'</div>'
+  +'<div class="fb-how"><b>'+f.cat+'</b> &middot; '+esc(f.desc)+(f.assist?" ("+esc(f.assist)+" assists)":"")+(f.and1?", and one":"")+'</div>'
+  +'<div class="fb-meta"><span class="fb-tag '+side+'">'+f.t+' &middot; '+esc(nick(f.t)).toUpperCase()+'</span><span>'+(f.p===1?mmss(f.ck)+" left in the 1st quarter":"Later in the game")+'</span><span>'+esc(nick(r.firstOff))+' won the tip</span>'
+  +(RES&&RES.p[f.t+"|"+f.n]!=null?'<span>Happens in '+(RES.p[f.t+"|"+f.n]*100).toFixed(1)+'% of runs</span>':'')+'</div>';
+  if(pre.length){h+='<details class="fb-seq"'+(pre.length<=6?" open":"")+'><summary class="tm">How it got there ('+(pre.length+1)+' plays)</summary><div class="ps-pbp" style="margin-top:8px;max-height:none">'
+    +plays.map(function(e){return'<div class="ps-pl '+(e.t===G.home?"ps-h":"ps-a")+(e.sc?" ps-scr":"")+'"><span class="ps-ck">'+mmss(e.ck)+'</span><span class="ps-t">'+e.t+'</span><span class="ps-x">'+esc(e.x)+'</span><span class="ps-s">'+e.a+'&ndash;'+e.h+'</span></div>'}).join("")+'</div></details>'}
+  else h+='<p class="sub" style="margin:10px 0 0">It went in on the very first possession.</p>';
+  document.getElementById("fbOne").innerHTML=h+'</div>'}
+
+function runMany(){var c={},cat={},tm={},pc={};tm[G.away]=0;tm[G.home]=0;
+  for(var i=0;i<N;i++){var f=E.play(700000+i,false,{stopFirst:true,tipHome:tip}).first,k=f.t+"|"+f.n;c[k]=(c[k]||0)+1;cat[f.cat]=(cat[f.cat]||0)+1;tm[f.t]++;
+    pc[k]=pc[k]||{};pc[k][f.cat]=(pc[k][f.cat]||0)+1}
+  var p={};for(var k in c)p[k]=c[k]/N;RES={p:p,cat:cat,tm:tm,pc:pc};drawTable()}
+
+function bestOf(o){var b=null;BKS.forEach(function(k){if(o&&o[k]&&(b===null||o[k].odds>o[b].odds))b=k});return b}
+function drawTable(){var odds=G.odds||{},sample=SMP,rows=[];
+  [G.away,G.home].forEach(function(t){G.players.filter(function(p){return p.t===t}).forEach(function(p){rows.push({n:p.n,t:t,start:p.start,inj:p.inj,p:RES.p[t+"|"+p.n]||0,o:odds[p.n],pc:RES.pc[t+"|"+p.n]})});
+    var bp=RES.p[t+"|Bench"]||0;if(bp>0)rows.push({n:"Rest of bench",t:t,bench:true,p:bp})});
+  if(sample)rows.forEach(function(r){if(r.p>.004&&!r.bench){r.o={};BKS.forEach(function(k,i){var v=Math.round((1/r.p-1)*100*(.78+((r.n.length+i*3)%7)/50)/5)*5;r.o[k]={odds:Math.max(150,v),link:HOME[k]}})}});
+  rows.sort(function(a,b){return(b.bench?-1:0)-(a.bench?-1:0)||b.p-a.p});
+  var cats=Object.keys(RES.cat).sort(function(a,b){return RES.cat[b]-RES.cat[a]}),mx=Math.max.apply(null,cats.map(function(k){return RES.cat[k]}));
+  var ta=RES.tm[G.away]/N,th=RES.tm[G.home]/N;
+  document.getElementById("fbSum").innerHTML='<div><div class="fb-k">Team to score first</div><div class="fb-split"><span style="width:'+(ta*100)+'%;background:var(--away)"></span><span style="width:'+(th*100)+'%;background:var(--home)"></span></div>'
+    +'<div style="display:flex;justify-content:space-between;gap:10px"><span><span class="fb-tag ps-a">'+G.away+'</span> <span class="num" style="font-size:22px">'+(ta*100).toFixed(1)+'%</span> <span class="tm">fair '+fair(ta)+'</span></span><span style="text-align:right"><span class="num" style="font-size:22px">'+(th*100).toFixed(1)+'%</span> <span class="fb-tag ps-h">'+G.home+'</span> <span class="tm">fair '+fair(th)+'</span></span></div>'
+    +'<p class="tm" style="margin:8px 0 0">'+(tip===.5?"Tip-off treated as a coin flip.":esc(nick(tip===1?G.home:G.away))+" win the tip in every run.")+'</p></div>'
+    +'<div><div class="fb-k">How the first basket goes in</div>'+cats.map(function(k){var v=RES.cat[k]/N;return'<div class="fb-bar"><span>'+k+'</span><i style="width:'+(RES.cat[k]/mx*100)+'%"></i><span class="num">'+Math.round(v*100)+'%</span></div>'}).join("")+'</div>';
+  var h='<thead><tr><th>Player</th><th>Chance</th><th>Fair odds</th><th>Most likely way</th><th>Best price</th><th>EV per $100</th>'+BKS.map(function(k){return'<th>'+k+'</th>'}).join("")+'</tr></thead><tbody>';
+  rows.forEach(function(r){var b=bestOf(r.o),way="";
+    if(r.pc){var ks=Object.keys(r.pc).sort(function(x,y){return r.pc[y]-r.pc[x]});var tot=0;ks.forEach(function(k){tot+=r.pc[k]});way=ks[0]+" ("+Math.round(r.pc[ks[0]]/tot*100)+"%)"}
+    var e=b?ev(r.p,r.o[b].odds):null;
+    h+='<tr'+(r.bench?' class="bench"':'')+'><td><div class="nm">'+esc(r.n)+(r.inj?' <span class="tg">'+esc(r.inj)+'</span>':'')+'</div><div class="tm"><span class="fb-tag '+(r.t===G.home?"ps-h":"ps-a")+'">'+r.t+'</span>'+(r.bench?" · everyone outside the projected rotation":(r.start?" · Starter":" · Bench"))+'</div></td>'
+    +'<td class="num">'+(r.p*100).toFixed(1)+'%</td><td class="num">'+fair(r.p)+'</td><td>'+(way||"-")+'</td>'
+    +'<td class="num">'+(b?fo(r.o[b].odds)+' <span class="tm">'+b+'</span>':"-")+'</td>'
+    +'<td class="num '+(e==null?"":(e>=0?"pos":"neg"))+'">'+(e==null?"-":(e>=0?"+":"−")+"$"+Math.abs(e).toFixed(0))+'</td>'
+    +BKS.map(function(k){var o=r.o&&r.o[k];return'<td class="num'+(o&&k===b?" best":"")+'">'+(o?'<a href="'+esc(o.link||HOME[k])+'" target="_blank" rel="noopener">'+fo(o.odds)+'</a>':"-")+'</td>'}).join("")+'</tr>'});
+  (G.unmatched||[]).forEach(function(u){var b=bestOf(u.books);h+='<tr class="bench"><td><div class="nm">'+esc(u.n)+'</div><div class="tm">Not in the projections (no recent minutes)</div></td><td class="num">-</td><td class="num">-</td><td>-</td><td class="num">'+(b?fo(u.books[b].odds)+' <span class="tm">'+b+'</span>':"-")+'</td><td>-</td>'+BKS.map(function(k){var o=u.books[k];return'<td class="num">'+(o?fo(o.odds):"-")+'</td>'}).join("")+'</tr>'});
+  document.getElementById("fbTbl").innerHTML=h+'</tbody>';
+  var anyOdds=Object.keys(odds).length>0;
+  document.getElementById("fbFoot").textContent=(sample?"Sample data with made-up players and odds. ":"")+(!sample&&!anyOdds?"Sportsbooks haven't posted first basket odds for this game yet; they usually appear the afternoon of the game. ":"")
+    +"Chance and fair odds come from "+N.toLocaleString("en-US")+" simulated openings. A first basket here is the first made field goal; free throws don't count, which matches how most sportsbooks settle it, but check your book's rules. Starters are the players who started each team's last game, swapping in the next-highest-minute player for anyone listed Out. EV per $100 is what a $100 bet at the best price would return on average if the sim's chance is right; book prices on first basket carry a large margin, so most are negative. Prices link to each sportsbook.";
+}
+document.getElementById("fbGame").onchange=choose;
+document.getElementById("fbTip").onchange=function(){tip=+this.value;document.getElementById("fbOne").innerHTML='<p class="sub">Updating…</p>';setTimeout(function(){runMany();one()},10)};
+document.getElementById("fbGo").onclick=function(){if(E)one()};
+DATA=sampleData();SMP=true;var nt=document.getElementById("fbNote");nt.hidden=false;nt.textContent="Sample data. Players and odds are made up to demo the page. The live slate loads automatically after each update.";fillGames();
+get("firstbasket.json").then(function(j){if(!j||!j.games||!j.games.length)return;DATA=j;SMP=false;
+  nt.textContent="Live slate: "+j.games.length+" games. Updated "+(j.generated?new Date(j.generated).toLocaleString():"recently")+".";fillGames()});
+})();
+</script>
+<script src="config.js"></script><script src="auth.js" data-wall></script><script src="menu.js"></script>
+</body>
+</html>
