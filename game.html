@@ -16,8 +16,13 @@
 </div>
 <script src="sim.js"></script>
 <script src="rest.js"></script>
+<script src="pbp.js"></script>
 <script>
-var PLAT="dk",CUR=null,RJ=null,IJ=null;
+var PLAT="dk",CUR=null,RJ=null,IJ=null,SIM=document.createElement("div"),simKey=null;
+function placeSim(g,P,smp){var slot=document.getElementById("simSlot");if(!slot)return;slot.appendChild(SIM);
+var key=g.id+"|"+(smp?"s":"r")+"|"+P.length;if(key===simKey)return;simKey=key;
+PBP.mount(SIM,{away:g.away,home:g.home,spread:g.spread,total:g.total,targetAway:g.exp_away,targetHome:g.exp_home,winHome:g.win_home,
+players:P.filter(function(p){return p.t===g.away||p.t===g.home}),sample:smp})}
 function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function sevOf(r){var s=(r.status||"").toLowerCase();return r.out||/out|doubt|susp|inact/.test(s)?3:/quest|day|gtd|game time/.test(s)?2:1}
 function backBy(d){var t=Date.parse(d);if(isNaN(t))return"";return"Expected back "+new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"})}
@@ -63,7 +68,7 @@ el.innerHTML='<p class="sub"><a href="index.html">&larr; All games</a></p><h1>'+
 +'<h2 class="sec" style="margin-top:22px">Projected box score</h2>'
 +'<div class="tw"><table class="nw"><thead><tr><th>Team stats</th><th style="text-align:right">'+g.away+'</th><th style="text-align:right">'+g.home+'</th></tr></thead><tbody>'+srow("Predicted points (sim)",g.exp_away.toFixed(1),g.exp_home.toFixed(1))+srow("Win chance",Math.round(g.win_away*100)+"%",Math.round(g.win_home*100)+"%")+srow("Points from listed players",f1(A.pts),f1(Hm.pts))+srow("Rebounds",f1(A.reb),f1(Hm.reb))+srow("Assists",f1(A.ast),f1(Hm.ast))+srow("Threes made",f1(A.thr),f1(Hm.thr))+'</tbody></table></div>'
 +'<div class="two"><div>'+A.html+'</div><div>'+Hm.html+'</div></div>'
-+'<p class="sub" style="font-size:13px;margin-top:10px">'+(smp?"Sample data. ":"")+'Scores come from 20,000 simulated games centered on the betting market. Stat lines come from the player projections: only players with a projection are listed, so team totals leave out the end of the bench. These are averages, not predictions of exact results.</p>'+restSection(g,smp)}
++'<p class="sub" style="font-size:13px;margin-top:10px">'+(smp?"Sample data. ":"")+'Scores come from 20,000 simulated games centered on the betting market. Stat lines come from the player projections: only players with a projection are listed, so team totals leave out the end of the bench. These are averages, not predictions of exact results.</p>'+'<h2 class="sec" style="margin-top:22px">Play-by-play sim</h2><div id="simSlot"></div>'+restSection(g,smp);placeSim(g,P,smp)}
 document.getElementById("gd").onclick=function(e){var b=e.target.closest("[data-p]");if(!b||!CUR)return;PLAT=b.getAttribute("data-p");render(CUR.g,CUR.P,CUR.smp)};
 var id=new URLSearchParams(location.search).get("g");
 render(find(sampleGames(),id),SPL,true);

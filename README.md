@@ -12,9 +12,9 @@ The NBA sister site to Off Tackle Analytics. It has the same pieces: separate pa
 | `parlay-builder.html` | Build a slip and compare the parlay price at each book |
 | `dfs-optimizer.html` | DraftKings and FanDuel lineups from the projections |
 | `rest-travel.html` | Back-to-backs, days of rest, road miles, and altitude for every game |
-| `game.html` | One game: simulated score, margin and total charts, projected box score, rest |
+| `game.html` | One game: simulated score, injury report, margin and total charts, projected box score, play-by-play sim, rest |
 | `about.html`, `pricing.html`, `login.html`, `signup.html` | Method, plans, and Whop login |
-| `styles.css`, `sim.js`, `rest.js`, `menu.js`, `auth.js`, `config.js` | Shared look, math, and settings |
+| `styles.css`, `sim.js`, `rest.js`, `pbp.js`, `menu.js`, `auth.js`, `config.js` | Shared look, math, the play-by-play sim, and settings |
 | `build_nba.py`, `espn_source.py` | Builds all the data files (see below) |
 | `.github/workflows/update-board.yml` | Runs `build_nba.py` twice a day and commits the data files |
 | `worker.js`, `wrangler.jsonc`, `functions/` | Cloudflare hosting and the members-only lock |
