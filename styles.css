@@ -145,3 +145,8 @@ details{margin-top:4px}
 .ps-chk div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--mute)}
 .ps-chk .num{display:block;font-size:24px;color:var(--ink)}
 @media (max-width:520px){.ps-pl{grid-template-columns:44px 34px 1fr}.ps-s{grid-column:3;text-align:left}}
+.dtw{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 22px;max-width:900px}
+.dtw>div{min-width:0}.l5h{font:600 12px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:2px 0 6px}
+.l5 svg{max-width:420px}.l5 p b{color:var(--ink)}
+.dtin{position:sticky;left:10px;max-width:calc(100vw - 56px)}
+.dt .bk td,.dt .bk th{white-space:nowrap}

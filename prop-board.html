@@ -34,7 +34,7 @@ var ORDER=["Points","Rebounds","Assists","3PM","PRA"];
 function build(P){return P.map(function(d){
 var sd=wsd(d),bs=d.books.map(function(b){return blend(d,b,sd)});
 var best=bs.reduce(function(a,b){return b.e>a.e?b:a}),worst=bs.reduce(function(a,b){return b.e<a.e?b:a});
-return{g:d.g||[d.o,d.t].join("@"),when:d.when||'',kick:d.kick||'',inj:d.inj||'',role:d.role||'',n:d.n,t:d.t,o:d.o,m:d.m,proj:d.proj,sd:sd,bs:bs,line:best.line,side:best.side,odds:best.odds,p:best.p,e:best.e,bk:best.bk,gain:best.e-worst.e}})}
+return{g:d.g||[d.o,d.t].join("@"),when:d.when||'',kick:d.kick||'',inj:d.inj||'',role:d.role||'',l5:d.last5||[],n:d.n,t:d.t,o:d.o,m:d.m,proj:d.proj,sd:sd,bs:bs,line:best.line,side:best.side,odds:best.odds,p:best.p,e:best.e,bk:best.bk,gain:best.e-worst.e}})}
 var R=build(sampleBoard());
 var mk=document.getElementById("mk"),me=document.getElementById("me"),mv=document.getElementById("mv"),tb=document.getElementById("tb"),open=null;
 var gm=document.getElementById("gm"),want="all";
@@ -70,6 +70,20 @@ return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Projected range ag
 +'<line x1="0" x2="'+W+'" y1="'+B+'" y2="'+B+'" stroke="var(--line)"/>'
 +'<text x="'+(right?lx+6:lx-6).toFixed(1)+'" y="16" font-size="12" fill="var(--ink)" text-anchor="'+(right?"start":"end")+'">Line '+r.line+'</text>'
 +'<text x="'+x(r.proj).toFixed(1)+'" y="'+B+'" dy="-4" font-size="11" fill="var(--mute)" text-anchor="middle">Proj '+r.proj+'</text></svg>'}
+function last5(r){var L=r.l5.slice().reverse();if(!L.length)return'<div class="l5"><div class="l5h">Last 5 games</div><p>No games this season yet.</p></div>';
+var W=420,H=150,top=22,bot=H-38,mx=Math.max(r.line*1.35,Math.max.apply(null,L.map(function(g){return g.v}))*1.1,1),bw=W/5;
+function y(v){return bot-v/mx*(bot-top)}
+var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Last 5 games against the line">';
+L.forEach(function(g,i){var over=g.v>r.line,x=i*bw+bw*.2,w=bw*.6,yy=y(g.v),c=g.v===r.line?"var(--mute)":(over?"var(--pos)":"var(--neg)"),dt=g.d.slice(5).replace("-","/").replace(/^0/,"");
+s+='<rect x="'+x.toFixed(1)+'" y="'+yy.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(1,bot-yy).toFixed(1)+'" rx="2" fill="'+c+'" opacity=".85"/>'
++'<text x="'+(x+w/2).toFixed(1)+'" y="'+(yy-5).toFixed(1)+'" font-size="13" font-weight="700" fill="var(--ink)" text-anchor="middle">'+g.v+'</text>'
++'<text x="'+(x+w/2).toFixed(1)+'" y="'+(bot+15)+'" font-size="11" fill="var(--ink)" text-anchor="middle">'+(g.h?"vs ":"@ ")+g.o+'</text>'
++'<text x="'+(x+w/2).toFixed(1)+'" y="'+(bot+29)+'" font-size="10" fill="var(--mute)" text-anchor="middle">'+dt+' \u00b7 '+g.min+' min</text>'});
+s+='<line x1="0" x2="'+W+'" y1="'+y(r.line).toFixed(1)+'" y2="'+y(r.line).toFixed(1)+'" stroke="var(--flag)" stroke-width="2" stroke-dasharray="5 4"/>'
++'<text x="'+(W-2)+'" y="'+(y(r.line)-5).toFixed(1)+'" font-size="11" fill="var(--ink)" text-anchor="end">'+r.line+'</text>'
++'<line x1="0" x2="'+W+'" y1="'+bot+'" y2="'+bot+'" stroke="var(--line)"/></svg>';
+var ov=L.filter(function(g){return g.v>r.line}).length,un=L.filter(function(g){return g.v<r.line}).length,avg=L.reduce(function(a,g){return a+g.v},0)/L.length;
+return'<div class="l5"><div class="l5h">Last '+L.length+' games</div>'+s+'<p>Over '+r.line+' in <b>'+ov+' of '+L.length+'</b>'+(un+ov<L.length?" (one push)":"")+' \u00b7 average '+avg.toFixed(1)+' '+({"3PM":"threes made","PRA":"PRA"}[r.m]||r.m.toLowerCase())+'. Green bars cleared the line; red bars fell short.</p></div>'}
 function bt(r){
 return '<div style="overflow-x:auto"><table class="bk"><thead><tr><th>Book</th><th>Line</th><th>Over</th><th>Under</th><th>Edge</th><th></th></tr></thead><tbody>'+r.bs.map(function(b,i){
 return '<tr'+(b.bk===r.bk?' class="best"':'')+'><td>'+b.bk+'</td><td>'+b.line+'</td><td>'+fo(b.ov)+'</td><td>'+fo(b.un)+'</td><td class="'+(b.e>=0?'pos':'neg')+'">'+(b.e>=0?'+':'')+b.e.toFixed(1)+'% '+b.side+'</td><td><button class="lg" data-k="'+r.n+'|'+r.m+'" data-b="'+i+'">Log</button></td></tr>'}).join('')+'</tbody></table></div>'}
@@ -85,7 +99,7 @@ var k=r.n+'|'+r.m,s='<tr class="r" tabindex="0" data-k="'+k+'"><td><div class="n
 +'<td class="num">'+fo(r.odds)+'</td><td class="num">'+r.proj+'</td>'
 +'<td class="num">'+(r.p*100).toFixed(1)+'%</td>'
 +'<td><div class="eb"><span class="num">+'+r.e.toFixed(1)+'%</span><i style="width:'+Math.min(r.e*7,70)+'px"></i></div></td></tr>';
-if(open===k)s+='<tr class="dt"><td colspan="7">'+chart(r)+bt(r)+'<p>Blending the projection with the book\'s no-vig price gives '+r.side+' '+r.line+' a '+(r.p*100).toFixed(1)+'% chance. The book prices it at '+(imp(r.odds)*100).toFixed(1)+'%. Shopping across books adds '+r.gain.toFixed(1)+' points of edge over the worst price.</p></td></tr>';
+if(open===k)s+='<tr class="dt"><td colspan="7"><div class="dtin"><div class="dtw"><div class="l5"><div class="l5h">Projected range</div>'+chart(r)+'</div>'+last5(r)+'</div>'+bt(r)+'<p>Blending the projection with the book\'s no-vig price gives '+r.side+' '+r.line+' a '+(r.p*100).toFixed(1)+'% chance. The book prices it at '+(imp(r.odds)*100).toFixed(1)+'%. Shopping across books adds '+r.gain.toFixed(1)+' points of edge over the worst price.</p></div></td></tr>';
 return s}).join("")}
 tb.addEventListener("click",function(e){var lb=e.target.closest(".lg");if(lb){logBet(lb);return}var tr=e.target.closest("tr.r");if(!tr)return;
 var k=tr.getAttribute("data-k");open=open===k?null:k;draw()});

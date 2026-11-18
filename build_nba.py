@@ -989,6 +989,9 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
                       "g": f"{gm.get('away', p['o'])}@{gm.get('home', p['t'])}", "when": gm.get("when", ""),
                       "kick": gm.get("kick", ""),
                       "sd": round(p["sd"][m], 2), "inj": p["inj"], "role": p["role"],
+                      "last5": [{"d": x["date"], "o": x["opp"], "h": x["home"], "min": round(x["MIN"]),
+                                 "v": x["PTS"] + x["REB"] + x["AST"] if m == "PRA" else x[COL[m]]}
+                                for x in p["hist"][:min(5, p["n_cur"])]],
                       "books": sorted(v["books"].values(), key=lambda b: b["bk"])})
     if unmatched:
         log(f"  {len(unmatched)} prop players had no projection (out, or name mismatch): {', '.join(sorted(unmatched)[:12])}")

@@ -38,7 +38,9 @@ function sampleBoard(){var out=[],BK=["DK","FD","MGM","CZR"];
 SPL.forEach(function(p,i){if(p.bench)return;var j=p.proj,ms=[];
 if(j.Points>=12)ms.push("Points");if(j.Rebounds>=6.5)ms.push("Rebounds");if(j.Assists>=4.5)ms.push("Assists");if(j["3PM"]>=1.8)ms.push("3PM");if(j.Points>=24)ms.push("PRA");
 ms.forEach(function(m,q){var v=m==="PRA"?j.Points+j.Rebounds+j.Assists:j[m],sd=sdOf(m,v),off=(((i*7+q*5)%7)-3)*sd*.05,line=Math.max(.5,Math.floor(v+off)+.5);
-var gm=gameOf(p.t);out.push({n:p.n,t:p.t,o:p.o,m:m,g:gm[1]+"@"+gm[0],when:gm[5],proj:+v.toFixed(1),sd:+sd.toFixed(2),inj:p.inj,role:p.role,books:BK.map(function(k,b){var l=line+((m==="Points"||m==="PRA")&&((i+b*3+q)%5===0)?(((i+b)%2)?1:-1):0);if(l<.5)l=.5;
+var gm=gameOf(p.t),opps=["MIA","CHI","DAL","SAC","ATL"],l5=opps.map(function(o,k){var z=Math.sin((i+1)*12.9898+(q+1)*78.233+k*37.719)*43758.5453;z=(z-Math.floor(z))*2-1;
+return{d:"2026-11-"+("0"+(14-k*2)).slice(-2),o:o,h:k%2===0,min:Math.round(p.min+z*4),v:Math.max(0,Math.round(v+z*sd*1.3))}});
+out.push({n:p.n,t:p.t,o:p.o,m:m,g:gm[1]+"@"+gm[0],when:gm[5],proj:+v.toFixed(1),last5:l5,sd:+sd.toFixed(2),inj:p.inj,role:p.role,books:BK.map(function(k,b){var l=line+((m==="Points"||m==="PRA")&&((i+b*3+q)%5===0)?(((i+b)%2)?1:-1):0);if(l<.5)l=.5;
 return{bk:k,line:l,ov:fx(-110+(((i*7+b*13+q)%5)-2)*5),un:fx(-110+(((i*5+b*11+q)%5)-2)*5)}})})})});return out}
 function fpts(p,plat){var j=p.proj||{},pts=j.Points||0,r=j.Rebounds||0,a=j.Assists||0,t3=j["3PM"]||0,s=j.Steals||0,b=j.Blocks||0,to=j.Turnovers||0;
 if(plat==="dk")return pts+.5*t3+1.25*r+1.5*a+2*s+2*b-.5*to+1.5*(p.dd||0)+3*(p.td||0);
