@@ -403,7 +403,7 @@ def clean_logs(rows):
             continue
         g = {"pid": r["PLAYER_ID"], "name": r["PLAYER_NAME"], "team": r["TEAM_ABBREVIATION"], "gid": str(r["GAME_ID"]),
              "date": str(r["GAME_DATE"])[:10], "home": m.group(2) == "vs.", "opp": m.group(3), "MIN": to_min(r.get("MIN")),
-             "START": r.get("START")}
+             "START": r.get("START"), "POS": r.get("POS") or ""}
         for c in ("PTS", "REB", "AST", "FG3M", "STL", "BLK", "TOV", "FGA", "FTA", "OREB"):
             g[c] = float(r.get(c) or 0)
         out.append(g)
@@ -484,6 +484,38 @@ def wavg(vals, ws):
     return sum(v * w for v, w in zip(vals, ws)) / s if s else 0.0
 
 
+def pos_group(pos):
+    p = (pos or "").upper()
+    if "C" in p:
+        return "C"
+    if "F" in p:
+        return "F"
+    if "G" in p:
+        return "G"
+    return ""
+
+
+POS_MATCH = {("G", "G"): 1.0, ("F", "F"): 1.0, ("C", "C"): 1.0, ("G", "F"): 0.3, ("F", "G"): 0.3,
+             ("F", "C"): 0.45, ("C", "F"): 0.45, ("G", "C"): 0.05, ("C", "G"): 0.05}
+
+
+def give_out_minutes(team_players, outs):
+    """Hand each Out player's minutes to healthy teammates, mostly at his position. Players with room
+    to play more and an established role (this season or last) get the biggest share, so a backup
+    center absorbs most of a missing center's minutes instead of the whole roster splitting them."""
+    for o in outs:
+        w = {}
+        for p in team_players:
+            match = POS_MATCH.get((o["pos"], p.get("pos", "")), 0.4)
+            room = max(0.0, 34.0 - p["min"])
+            w[id(p)] = match * math.sqrt(max(p.get("role_min", p["min"]), 1.0)) * room
+        W = sum(w.values())
+        if W <= 0:
+            continue
+        for p in team_players:
+            p["min"] = min(MAX_MINUTES, p["min"] + o["min"] * w[id(p)] / W)
+
+
 def fit_minutes(R):
     """Make a team's projected minutes add up to 240.
     Too many minutes (usually a deep bench): take them mostly from the bench, so a 36-minute
@@ -553,7 +585,7 @@ def project_players(cur_logs, prev_logs, roster, slate_teams, ratings, opp_of, i
     for g in cur_logs:
         team_last_game[g["team"]] = max(team_last_game[g["team"]], g["date"])
 
-    P = []
+    P, outs = [], []
     for r in roster:
         team = r.get("TEAM_ABBREVIATION")
         if team not in slate_teams:
@@ -607,20 +639,31 @@ def project_players(cur_logs, prev_logs, roster, slate_teams, ratings, opp_of, i
             r_prev = sum(g[c] for g in prev) / pm if pm else 0.0
             rates[st] = wr * r_cur + (1 - wr) * r_prev
         tag, is_out = inj_tag(inj.get(norm(name)))
+        pos = pos_group(next((g.get("POS") for g in cur + prev if g.get("POS")), ""))
         if is_out:
+            outs.append({"t": team, "n": name, "min": mins, "pos": pos})
             continue
         hist = [g for g in cur[:20]] + [g for g in prev[:max(0, 20 - len(cur))]]
         P.append({"pid": pid, "n": name, "t": team, "o": opp_of[team], "min": mins, "rates": rates, "inj": tag,
-                  "role": role, "hist": hist, "n_cur": n, "moved": moved})
+                  "role": role, "hist": hist, "n_cur": n, "moved": moved, "pos": pos,
+                  "role_min": max(mins, 0.8 * min_prev)})
 
-    # spread each team's 240 minutes across its rotation (this is how injured players' minutes move)
+    # Out players' minutes go to teammates at their position first; then each team's rotation is
+    # scaled to 240 minutes
     for team in slate_teams:
-        R = [p for p in P if p["t"] == team and p["min"] >= ROTATION_MIN]
-        before = {id(p): p["min"] for p in R}
+        TP = [p for p in P if p["t"] == team]
+        before = {id(p): p["min"] for p in TP}
+        give_out_minutes(TP, [o for o in outs if o["t"] == team])
+        R = [p for p in TP if p["min"] >= ROTATION_MIN]
         fit_minutes(R)
-        for p in R:
-            if not p["role"] and before[id(p)] >= 8 and p["min"] / before[id(p)] - 1 >= 0.15:
+        for p in TP:
+            b = before[id(p)]
+            if not p["role"] and b >= 3 and p["min"] - b >= 3 and p["min"] / b - 1 >= 0.15:
                 p["role"] = "Role up"
+        gained = sorted(TP, key=lambda p: before[id(p)] - p["min"])[:2]
+        if [o for o in outs if o["t"] == team]:
+            log(f"  {team}: out {', '.join(o['n'] + ' (' + str(round(o['min'])) + ' min)' for o in outs if o['t'] == team)}; "
+                f"biggest gains {', '.join(p['n'] + ' ' + str(round(before[id(p)])) + '->' + str(round(p['min'])) for p in gained)}")
 
     for p in P:
         opp = ratings.get(p["o"]) or {"pace_rel": 1.0, "def": {st: 1.0 for st in STATS}}
