@@ -212,20 +212,36 @@ def roster_from_rows(rows):
              "POS": r.get("POS", "")} for k, r in last.items()]
 
 
-def injuries():
-    """{player display name: status} from ESPN's league injury report ('Out', 'Day-To-Day', ...)."""
+def injury_report():
+    """ESPN's league injury report -> list of {n, status, team, type, detail, side, ret, note, date}."""
     j = get_json(f"{BASE}/injuries") or {}
-    out = {}
+    out = []
 
-    def take(e):
+    def take(e, group):
         a = e.get("athlete") or {}
-        n, s = a.get("displayName"), e.get("status") or (e.get("type") or {}).get("description")
-        if n and s:
-            out[n] = s
+        n = a.get("displayName")
+        st = e.get("status") or (e.get("type") or {}).get("description")
+        if not n or not st:
+            return
+        det = e.get("details") or {}
+        inj = e.get("injury") if isinstance(e.get("injury"), dict) else {}
+        tm = (e.get("team") or a.get("team") or {})
+        out.append({"n": n, "status": str(st).title() if str(st).islower() else st,
+                    "team": team(tm.get("abbreviation")) if tm.get("abbreviation") else "",
+                    "team_name": tm.get("displayName") or group or "",
+                    "type": det.get("type") or inj.get("type") or "",
+                    "detail": det.get("detail") or "", "side": det.get("side") or "",
+                    "ret": det.get("returnDate") or e.get("returnDate") or "",
+                    "note": e.get("shortComment") or "", "date": e.get("date") or ""})
     for e in j.get("injuries") or []:
         if isinstance(e.get("injuries"), list):   # grouped by team
             for x in e["injuries"]:
-                take(x)
+                take(x, e.get("displayName"))
         else:
-            take(e)
+            take(e, None)
     return out
+
+
+def injuries():
+    """{player display name: status} from ESPN's league injury report ('Out', 'Day-To-Day', ...)."""
+    return {r["n"]: r["status"] for r in injury_report()}

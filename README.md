@@ -21,7 +21,7 @@ The NBA sister site to Off Tackle Analytics. It has the same pieces: separate pa
 | `slates/` | DraftKings and FanDuel salary files for the DFS Optimizer |
 | `injuries.csv` | Your own injury overrides (`player,status`) |
 
-The data script writes `board.json`, `probable.json`, `games.json`, `lines.json`, `trends.json`, `rest.json`, `picks_log.json` and `results.json`. Until the first run, every page shows clearly labeled sample data.
+The data script writes `board.json`, `probable.json`, `games.json`, `lines.json`, `trends.json`, `rest.json`, `injuries.json`, `picks_log.json` and `results.json`. Until the first run, every page shows clearly labeled sample data.
 
 ## Setup
 

@@ -17,7 +17,21 @@
 <script src="sim.js"></script>
 <script src="rest.js"></script>
 <script>
-var PLAT="dk",CUR=null,RJ=null;
+var PLAT="dk",CUR=null,RJ=null,IJ=null;
+function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function sevOf(r){var s=(r.status||"").toLowerCase();return r.out||/out|doubt|susp|inact/.test(s)?3:/quest|day|gtd|game time/.test(s)?2:1}
+function backBy(d){var t=Date.parse(d);if(isNaN(t))return"";return"Expected back "+new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"UTC"})}
+function injSection(g,smp){var data=null;
+if(smp){data={};[g.away,g.home].forEach(function(t){data[t]=SPL.filter(function(p){return p.t===t&&p.inj}).map(function(p){return{n:p.n,status:p.inj,out:false,side:"Left",type:"Ankle",detail:"Sprain",min:p.min,pts:p.proj.Points,gp:8}})})}
+else if(IJ&&IJ.teams)data=IJ.teams;
+if(!data)return"";
+function tbl(t){var L=data[t]||[];if(!L.length)return'<p class="sub" style="margin:4px 0 0">No injuries reported.</p>';
+return'<div class="tw"><table class="nw"><tbody>'+L.map(function(r){var inj=[r.side,r.type,r.detail].filter(Boolean).join(" "),extra=[inj,backBy(r.ret)].filter(Boolean).join(" \u00b7 ");
+var avg=r.gp?Math.round(r.min)+" min \u00b7 "+(+r.pts).toFixed(1)+" pts":"No games this season";
+return'<tr><td style="white-space:normal"><div class="nm">'+esc(r.n)+'</div><div class="tm">'+esc(extra||(r.source==="manual"?"Added by Pick & Roll":"Details not listed"))+'</div>'+(r.note?'<div class="tm" style="margin-top:2px">'+esc(r.note)+'</div>':'')+'</td>'
++'<td style="text-align:right;vertical-align:top"><span class="sv s'+sevOf(r)+'">'+esc(r.status)+'</span><div class="tm" style="margin-top:4px">'+avg+'</div></td></tr>'}).join("")+'</tbody></table></div>'}
+return'<h2 class="sec" style="margin-top:8px">Injury report</h2><div class="two" style="margin:8px 0 6px">'+[g.away,g.home].map(function(t){return'<div><div class="tm" style="margin-bottom:4px"><b>'+t+'</b></div>'+tbl(t)+'</div>'}).join("")+'</div>'
++'<p class="sub" style="font-size:13px">'+(smp?"Sample data. ":"From ESPN\'s injury report"+(IJ&&IJ.generated?", as of "+new Date(IJ.generated).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):"")+". ")+'Players listed Out or Doubtful are left out of the projections, and their minutes go to teammates. Questionable and day-to-day players are projected as usual and tagged. Season averages are per game played. Status changes are common close to tip-off.</p>'}
 function find(L,id){return L.filter(function(g){return g.id===id})[0]||L[0]}
 function nm(p){return'<span class="nm">'+p.n+'</span>'+(p.inj?' <span class="tg">'+p.inj+'</span>':"")}
 function f1(x){return(x||0).toFixed(1)}
@@ -40,6 +54,7 @@ var pn=PLAT==="dk"?"DraftKings":"FanDuel";
 el.innerHTML='<p class="sub"><a href="index.html">&larr; All games</a></p><h1>'+g.away+' at '+g.home+'</h1><p class="sub">'+g.when+'</p>'
 +'<div class="gs"><div><div class="tm">'+g.away+'</div><div class="big">'+g.exp_away.toFixed(1)+'</div><div class="tm">'+Math.round(g.win_away*100)+'% to win</div></div><div class="vs">vs</div><div><div class="tm">'+g.home+'</div><div class="big">'+g.exp_home.toFixed(1)+'</div><div class="tm">'+Math.round(g.win_home*100)+'% to win</div></div></div>'
 +'<div class="sum"><div><span class="num">'+fav+' -'+fs+'</span>market spread</div><div><span class="num">'+g.total+'</span>market total</div><div><span class="num">'+Math.round(g.close*100)+'%</span>decided by 5 or fewer</div><div><span class="num">'+Math.round(g.hi230*100)+'%</span>230+ total points</div></div>'
++injSection(g,smp)
 +'<div class="two"><div><h2 class="sec">Margin of victory</h2>'+hist(g.margin_hist,MB,0,function(e){return e>=0?"var(--ink)":"var(--mute)"},"Simulated margin")+'<p class="sub" style="font-size:13px">Dark bars are '+g.home+' wins, gray bars are '+g.away+' wins. The orange line is an even game.</p></div>'
 +'<div><h2 class="sec">Total points</h2>'+hist(g.total_hist,TB,g.total,function(){return"var(--ink)"},"Simulated total points")+'<p class="sub" style="font-size:13px">The orange line is the market total of '+g.total+'.</p></div></div>'
 +'<h2 class="sec" style="margin-top:8px">Players to watch</h2><p class="sub" style="margin:0 0 8px">The three highest projected fantasy scorers on each team, with their projected stat lines.</p>'
@@ -52,7 +67,7 @@ el.innerHTML='<p class="sub"><a href="index.html">&larr; All games</a></p><h1>'+
 document.getElementById("gd").onclick=function(e){var b=e.target.closest("[data-p]");if(!b||!CUR)return;PLAT=b.getAttribute("data-p");render(CUR.g,CUR.P,CUR.smp)};
 var id=new URLSearchParams(location.search).get("g");
 render(find(sampleGames(),id),SPL,true);
-Promise.all([get("games.json"),get("probable.json"),get("rest.json")]).then(function(a){var gj=a[0],p=a[1];RJ=a[2]&&a[2].games?a[2]:null;
+Promise.all([get("games.json"),get("probable.json"),get("rest.json"),get("injuries.json")]).then(function(a){var gj=a[0],p=a[1];RJ=a[2]&&a[2].games?a[2]:null;IJ=a[3]&&a[3].teams?a[3]:null;
 if(gj&&gj.games&&gj.games.length){var g=find(gj.games,id);document.title=g.away+" at "+g.home+" | Pick & Roll Analytics";render(g,p&&p.players||[],false)}});
 </script>
 <script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>

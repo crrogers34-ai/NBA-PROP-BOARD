@@ -330,13 +330,16 @@ def parse_props(ev_odds):
 OUT_WORDS = ("out", "doubtful", "inactive", "suspended")
 
 
-def load_injuries(path):
+def load_injuries(path, report=None):
+    """-> {normalized name: status}. Fills `report` (a list) with every row, for injuries.json."""
     inj = {}
+    report = report if report is not None else []
     try:
-        espn = espn_source.injuries()
-        for n, st in espn.items():
-            inj[norm(n)] = st
-        log(f"  {len(espn)} players on ESPN's injury report")
+        rows = espn_source.injury_report()
+        for r in rows:
+            inj[norm(r["n"])] = r["status"]
+            report.append(dict(r, source="ESPN"))
+        log(f"  {len(rows)} players on ESPN's injury report")
     except Exception as e:
         log(f"  ESPN injury report skipped: {e}")
     if path and os.path.exists(path):
@@ -346,6 +349,10 @@ def load_injuries(path):
                 n, st = (r.get("player") or "").strip(), (r.get("status") or "").strip()
                 if n and st and not n.lower().startswith("example"):
                     inj[norm(n)] = st   # your file wins
+                    report[:] = [x for x in report if norm(x["n"]) != norm(n)]
+                    report.append({"n": n, "status": st, "team": "", "team_name": "", "type": "", "detail": "",
+                                   "side": "", "ret": "", "note": (r.get("note") or "").strip(), "date": "",
+                                   "source": "manual"})
                     k += 1
         log(f"  {k} rows from {path}")
     return inj
@@ -780,7 +787,8 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     log(f"  {len(cur_logs)} player games this season, {len(prev_logs)} last season, {len(roster)} rostered players")
     tg_cur, tg_prev = team_games(cur_logs), team_games(prev_logs)
     ratings, league_pace = team_ratings(tg_cur, tg_prev)
-    inj = load_injuries(args.injuries)
+    inj_rows = []
+    inj = load_injuries(args.injuries, inj_rows)
 
     games, lines_out, opp_of, slate_teams = [], [], {}, set()
     for e in slate:
@@ -946,6 +954,37 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     except Exception as ex:
         log(f"Could not update the results tracker: {ex}")
 
+    # injury report for tonight's teams, with each player's season averages for context
+    team_of, avg = {}, defaultdict(lambda: [0, 0.0, 0.0])
+    for r in roster:
+        team_of[norm(r.get("DISPLAY_FIRST_LAST"))] = r.get("TEAM_ABBREVIATION")
+    for gl in cur_logs:
+        a_ = avg[norm(gl["name"])]
+        a_[0] += 1
+        a_[1] += gl["MIN"]
+        a_[2] += gl["PTS"]
+        team_of.setdefault(norm(gl["name"]), gl["team"])
+    inj_teams = defaultdict(list)
+    for r in inj_rows:
+        k = norm(r["n"])
+        t = team_of.get(k) or r.get("team")
+        if not t and r.get("team_name"):
+            try:
+                t = abbr(r["team_name"])
+            except KeyError:
+                t = ""
+        if t not in slate_teams:
+            continue
+        gp, mn, pts = avg.get(k, [0, 0.0, 0.0])
+        tag, out_ = inj_tag(r["status"])
+        inj_teams[t].append({"n": r["n"], "status": r["status"], "out": out_, "type": r.get("type", ""),
+                             "detail": r.get("detail", ""), "side": r.get("side", ""), "ret": r.get("ret", ""),
+                             "note": r.get("note", ""), "source": r.get("source", ""), "gp": gp,
+                             "min": round(mn / gp, 1) if gp else None, "pts": round(pts / gp, 1) if gp else None})
+    for t in inj_teams:
+        inj_teams[t].sort(key=lambda x: (not x["out"], -(x["min"] or 0)))
+    log(f"  injury report: {sum(len(v) for v in inj_teams.values())} players on tonight's teams")
+
     files = {
         "board.json": {"generated": now, "slate": slate_day.isoformat(), "props": board},
         "probable.json": {"generated": now, "teams": teams, "players": players},
@@ -953,6 +992,7 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
         "lines.json": {"generated": now, "games": lines_out},
         "trends.json": {"generated": now, "up": up, "down": down},
         "rest.json": {"generated": now, "games": rest_games},
+        "injuries.json": {"generated": now, "teams": inj_teams},
     }
     for name, data in files.items():
         with open(os.path.join(args.out, name), "w") as f:
