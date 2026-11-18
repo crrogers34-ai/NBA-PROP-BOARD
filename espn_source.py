@@ -283,6 +283,7 @@ def first_baskets(label, cache_dir):
         if not f or not rows:
             continue
         r = rows[0]
+        f = dict(f, pos=next((x.get("POS", "") for x in rows if x["PLAYER_ID"] == f.get("pid")), ""))
         home = r["TEAM_ABBREVIATION"] if " vs. " in r["MATCHUP"] else r["MATCHUP"].split(" @ ")[1]
         away = r["MATCHUP"].split(" vs. ")[1] if " vs. " in r["MATCHUP"] else r["TEAM_ABBREVIATION"]
         out[(r["GAME_DATE"], away, home)] = f

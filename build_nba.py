@@ -742,10 +742,10 @@ def grade_first_baskets(out_dir, actual, slate_day):
     writes fb_results.json: how much chance the sim gave the real first scorer, compared with the
     sportsbooks' prices, plus the record of every bet the sim rated +EV at the best price."""
     lp = os.path.join(out_dir, "fb_log.json")
-    if not os.path.exists(lp):
-        return None
-    with open(lp) as f:
-        games = json.load(f).get("games", [])
+    games = []
+    if os.path.exists(lp):
+        with open(lp) as f:
+            games = json.load(f).get("games", [])
     for g in games:
         if g.get("result") or g["date"] >= slate_day.isoformat():
             continue
@@ -802,6 +802,21 @@ def grade_first_baskets(out_dir, actual, slate_day):
            "bets": {"count": len(bets), "wins": sum(b["won"] for b in bets), "units": round(sum(b["units"] for b in bets), 2)},
            "recent": [{"date": g["date"], "game": f"{g['away']} at {g['home']}", **{k: g["result"][k] for k in ("n", "t", "how", "p", "rank", "p_book")}}
                       for g in sorted(G, key=lambda g: g["date"], reverse=True)[:15]]}
+    A = list(actual.values())
+    if A:
+        m = len(A)
+        how, pos = defaultdict(int), defaultdict(int)
+        for x in A:
+            how[x["how"]] += 1
+            p_ = (x.get("pos") or "").upper()
+            pos["Center" if p_ in ("C", "FC", "C-F") else "Forward" if "F" in p_ else "Guard" if "G" in p_ else "Other"] += 1
+        tk = [x for x in A if x.get("tip")]
+        res["season"] = {"games": m,
+                         "how": {k: round(v / m, 3) for k, v in sorted(how.items(), key=lambda kv: -kv[1])},
+                         "position": {k: round(v / m, 3) for k, v in sorted(pos.items(), key=lambda kv: -kv[1])},
+                         "starter_share": round(sum(1 for x in A if x.get("starter")) / m, 3),
+                         "tip_winner_scored_first": round(sum(1 for x in tk if x["tip"] == x["t"]) / len(tk), 3) if tk else None,
+                         "first_quarter": round(sum(1 for x in A if x.get("period") == 1) / m, 3)}
     with open(os.path.join(out_dir, "fb_results.json"), "w") as f:
         json.dump(res, f, indent=1)
     return res
