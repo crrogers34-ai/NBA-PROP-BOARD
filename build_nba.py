@@ -736,6 +736,77 @@ def when_text(iso):
     return t.strftime("%a ") + t.strftime("%I:%M %p").lstrip("0") + " ET"
 
 
+# ---------------------------------------------------------------- first basket tracker
+def grade_first_baskets(out_dir, actual, slate_day):
+    """Grades fb_log.json (written by fb_predict.js before each game) against ESPN's play-by-play and
+    writes fb_results.json: how much chance the sim gave the real first scorer, compared with the
+    sportsbooks' prices, plus the record of every bet the sim rated +EV at the best price."""
+    lp = os.path.join(out_dir, "fb_log.json")
+    if not os.path.exists(lp):
+        return None
+    with open(lp) as f:
+        games = json.load(f).get("games", [])
+    for g in games:
+        if g.get("result") or g["date"] >= slate_day.isoformat():
+            continue
+        a = actual.get((g["date"], g["away"], g["home"]))
+        if not a:
+            continue
+        name = a["n"] if norm(a["n"]) in {norm(k) for k in g["p"]} else a["n"]
+        pk = {norm(k): v for k, v in g["p"].items()}
+        p_act = pk.get(norm(name), g["p"].get(a["t"] + " bench", 0.0) if not a.get("starter") else 0.0)
+        ranked = sorted(g["p"].items(), key=lambda kv: -kv[1])
+        rank = next((i + 1 for i, (k, _) in enumerate(ranked) if norm(k) == norm(name)), None)
+        # sportsbooks: best price, normalized across the players they list
+        imp = {norm(k): (100 / (b["odds"] + 100) if b["odds"] > 0 else -b["odds"] / (-b["odds"] + 100)) for k, b in g["best"].items()}
+        tot = sum(imp.values())
+        p_book = imp.get(norm(name), 0) / tot if tot else None
+        bets = []
+        for k, b in g["best"].items():
+            pr = pk.get(norm(k), 0)
+            d = b["odds"] / 100 if b["odds"] > 0 else 100 / -b["odds"]
+            if pr * d - (1 - pr) > 0:
+                won = norm(k) == norm(name)
+                bets.append({"n": k, "bk": b["bk"], "odds": b["odds"], "p": pr, "won": won, "units": round(d if won else -1, 2)})
+        fav = max(g["team"], key=g["team"].get)
+        g["result"] = {"n": a["n"], "t": a["t"], "how": a["how"], "text": a["text"], "starter": a.get("starter"),
+                       "tip": a.get("tip"), "p": round(p_act, 4), "rank": rank, "p_book": round(p_book, 4) if p_book else p_book,
+                       "team_pick": fav, "team_right": fav == a["t"], "bets": bets}
+    with open(lp, "w") as f:
+        f.write('{"games":[\n' + ",\n".join(json.dumps(x, separators=(",", ":")) for x in games) + "\n]}\n")
+
+    G = [g for g in games if g.get("result")]
+    R = [g["result"] for g in G]
+    n = len(R)
+    bets = [b for r in R for b in r["bets"]]
+    both = [r for r in R if r["p_book"]]
+    how_act = defaultdict(int)
+    for r in R:
+        how_act[r["how"]] += 1
+    how_sim = defaultdict(float)
+    for g in G:
+        for k, v in g["how"].items():
+            how_sim[k] += v
+    tip_known = [(g, g["result"]) for g in G if g["result"].get("tip")]
+    res = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "games": n,
+           "pending": sum(1 for g in games if not g.get("result")),
+           "avg_chance_actual": round(sum(r["p"] for r in R) / n, 4) if n else None,
+           "avg_book_chance_actual": round(sum(r["p_book"] for r in both) / len(both), 4) if both else None,
+           "book_games": len(both),
+           "top3": round(sum(1 for r in R if r["rank"] and r["rank"] <= 3) / n, 3) if n else None,
+           "team_first_right": round(sum(1 for r in R if r["team_right"]) / n, 3) if n else None,
+           "tip_winner_scored_first": round(sum(1 for g, r in tip_known if r["tip"] == r["t"]) / len(tip_known), 3) if tip_known else None,
+           "starter_share": round(sum(1 for r in R if r["starter"]) / n, 3) if n else None,
+           "how_actual": {k: round(v / n, 3) for k, v in sorted(how_act.items(), key=lambda kv: -kv[1])} if n else {},
+           "how_sim": {k: round(v / n, 3) for k, v in sorted(how_sim.items(), key=lambda kv: -kv[1])} if n else {},
+           "bets": {"count": len(bets), "wins": sum(b["won"] for b in bets), "units": round(sum(b["units"] for b in bets), 2)},
+           "recent": [{"date": g["date"], "game": f"{g['away']} at {g['home']}", **{k: g["result"][k] for k in ("n", "t", "how", "p", "rank", "p_book")}}
+                      for g in sorted(G, key=lambda g: g["date"], reverse=True)[:15]]}
+    with open(os.path.join(out_dir, "fb_results.json"), "w") as f:
+        json.dump(res, f, indent=1)
+    return res
+
+
 # ---------------------------------------------------------------- results tracker
 def blended(p, b):
     """Same math as prop-board.html: -> (side, line, odds, chance, edge %) for one book."""
@@ -1027,6 +1098,14 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
 
     for g in games:
         g.pop("_win10"), g.pop("_pts115"), g.pop("event")
+
+    if used == "espn":
+        try:
+            fr = grade_first_baskets(args.out, espn_source.first_baskets(season, args.cache), slate_day)
+            if fr:
+                log(f"First basket tracker: {fr['games']} games graded, {fr['pending']} waiting")
+        except Exception as ex:
+            log(f"Could not update the first basket tracker: {ex}")
 
     try:
         res = track_picks(board, slate_day, all_cur, args.out)

@@ -44,6 +44,7 @@ Once all four are set, the board, probable, lines, trends, picks and first baske
 
 - The workflow runs about **2 PM and 6 PM Eastern**. To change the times, edit the `cron` lines in `update-board.yml` (they are in UTC). Each run uses about 3 Odds API credits plus about 6 per game (5 prop markets and first basket), roughly 40 to 60 on a full slate, from the same credit pool as the NFL site.
 - **Injuries** come from ESPN's injury report automatically. To override one, add a line to `injuries.csv`, for example `Joel Embiid,Out`, and commit it. Out and Doubtful players are removed from the projections; other statuses are tagged.
+- **First basket tracking:** after `build_nba.py`, the workflow runs `node fb_predict.js`, which logs each game's first basket chances to `fb_log.json` before tip-off. The next run reads the real first basket from ESPN's play-by-play and writes the record to `fb_results.json`, shown at the bottom of the First Basket page.
 - **Results:** every prop the board flags at a 2% edge or more is logged before tip-off in `picks_log.json` and graded after the game. `results.json` shows the running record by market and by date.
 
 ## Running it on your own computer

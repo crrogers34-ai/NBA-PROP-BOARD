@@ -34,6 +34,8 @@ jobs:
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           NBA_SOURCE: espn   # NBA.com blocks GitHub's servers, so the scheduled run reads ESPN box scores
+      - name: Log first basket chances
+        run: node fb_predict.js
       - name: Commit data files
         run: |
           git config user.name "board-bot"

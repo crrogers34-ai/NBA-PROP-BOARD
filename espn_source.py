@@ -9,6 +9,7 @@ for games played since the last run.
 """
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -130,6 +131,55 @@ def parse_summary(j):
     return rows
 
 
+def method_of(text, value):
+    t = (text or "").lower()
+    if value == 3 or "three point" in t or "3-pt" in t:
+        return "Three"
+    if "dunk" in t:
+        return "Dunk"
+    if "hook" in t:
+        return "Hook shot"
+    if "float" in t:
+        return "Floater"
+    if "layup" in t or "lay up" in t or "tip shot" in t or "putback" in t:
+        return "Layup"
+    return "Jump shot"
+
+
+def first_basket(j, rows):
+    """The game's first made field goal and who had the opening possession, from ESPN's play-by-play."""
+    plays = j.get("plays") or []
+    if not plays:
+        return None
+    comp = ((j.get("header") or {}).get("competitions") or [{}])[0]
+    tid = {str((c.get("team") or {}).get("id")): team((c.get("team") or {}).get("abbreviation"))
+           for c in comp.get("competitors") or []}
+    names = {r["PLAYER_ID"]: r["PLAYER_NAME"] for r in rows}
+    starters = {r["PLAYER_NAME"] for r in rows if r.get("START")}
+    tip = None
+    for pl in plays[:12]:
+        txt = (pl.get("text") or "").lower()
+        if any(w in txt for w in (" makes ", " misses ", "turnover", "bad pass", "traveling")):
+            tip = tid.get(str((pl.get("team") or {}).get("id")))
+            break
+    for pl in plays:
+        val = pl.get("scoreValue")
+        txt = pl.get("text") or ""
+        made = pl.get("scoringPlay") and val in (2, 3)
+        if not made and val is None:
+            made = " makes " in txt and "free throw" not in txt.lower()
+        if not made:
+            continue
+        parts = pl.get("participants") or []
+        pid = "E" + str(((parts[0] if parts else {}).get("athlete") or {}).get("id"))
+        n = names.get(pid) or re.split(r" makes ", txt)[0].strip()
+        per = (pl.get("period") or {}).get("number") or 1
+        return {"n": n, "pid": pid, "t": tid.get(str((pl.get("team") or {}).get("id")), ""),
+                "how": method_of(txt, val), "text": txt, "period": per,
+                "clock": (pl.get("clock") or {}).get("displayValue") or "", "starter": n in starters, "tip": tip}
+    return None
+
+
 def _load(path):
     if os.path.exists(path):
         with open(path) as f:
@@ -188,23 +238,54 @@ def season_rows(label, cache_dir, today, prev=False, workers=8):
 
     def fetch(gid):
         try:
-            return gid, parse_summary(get_json(f"{BASE}/summary", {"event": gid}) or {})
+            j = get_json(f"{BASE}/summary", {"event": gid}) or {}
+            rows = parse_summary(j)
+            return gid, rows, (first_basket(j, rows) if rows else None)
         except Exception as e:
             log(f"  box score {gid} skipped: {e}")
-            return gid, None
+            return gid, None, None
 
+    fb = c.setdefault("first", {})
+    if not prev:   # one-time: first baskets for games cached before this was tracked
+        back = [g for g in c["games"] if g not in fb and g not in new_ids]
+        if back:
+            log(f"  ESPN {label}: reading the first basket from {len(back)} earlier game(s)")
+            new_ids = new_ids + back
     got = 0
     with ThreadPoolExecutor(workers) as ex:
-        for gid, rows in ex.map(fetch, new_ids):
+        for gid, rows, first in ex.map(fetch, new_ids):
             if rows:
                 c["games"][gid] = rows
                 got += 1
+            if rows is not None and not prev:
+                fb[gid] = first
     c["done_dates"] = sorted(done | set(finished_days))
     _save(path, c)
+    if not prev and fb:
+        found = [f for f in fb.values() if f]
+        ex_ = found[-1] if found else None
+        log(f"  ESPN {label}: first basket found in {len(found)} of {len(fb)} games"
+            + (f" (latest: {ex_['n']}, {ex_['how']}, {ex_['t']}; opening possession {ex_.get('tip')})" if ex_ else ""))
     if new_ids and not got:
         raise RuntimeError(f"ESPN returned no usable box scores for {label}.")
     out = [r for rows in c["games"].values() for r in rows]
     log(f"  ESPN {label}: {len(c['games'])} games, {len(out)} player rows")
+    return out
+
+
+def first_baskets(label, cache_dir):
+    """{(date, away, home): first basket info} for games already in the cache."""
+    path = os.path.join(cache_dir, f"espn_{label}.json")
+    c = _load(path)
+    out = {}
+    for gid, f in (c.get("first") or {}).items():
+        rows = c["games"].get(gid) or []
+        if not f or not rows:
+            continue
+        r = rows[0]
+        home = r["TEAM_ABBREVIATION"] if " vs. " in r["MATCHUP"] else r["MATCHUP"].split(" @ ")[1]
+        away = r["MATCHUP"].split(" vs. ")[1] if " vs. " in r["MATCHUP"] else r["TEAM_ABBREVIATION"]
+        out[(r["GAME_DATE"], away, home)] = f
     return out
 
 

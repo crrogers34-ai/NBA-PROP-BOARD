@@ -51,6 +51,9 @@
 <div class="fb-sum" id="fbSum"></div>
 <div class="tw"><table class="fb-tbl" id="fbTbl"></table></div>
 <p class="sub" id="fbFoot" style="font-size:13px;margin-top:10px"></p>
+
+<h2 class="sec" style="margin-top:26px">Track record</h2>
+<div id="fbRec"><p class="sub">Every game's pregame chances are logged before tip-off and graded against the real first basket from the play-by-play. Results show up here after the first night of games.</p></div>
 <p class="sub fine">For entertainment and information only. Not financial advice, and no outcome is guaranteed. 21+ where legal. If you or someone you know has a gambling problem, call 1-800-GAMBLER.</p>
 </div>
 <script src="sim.js"></script>
@@ -127,6 +130,24 @@ function drawTable(){var odds=G.odds||{},sample=SMP,rows=[];
   document.getElementById("fbFoot").textContent=(sample?"Sample data with made-up players and odds. ":"")+(!sample&&!anyOdds?"Sportsbooks haven't posted first basket odds for this game yet; they usually appear the afternoon of the game. ":"")
     +"Chance and fair odds come from "+N.toLocaleString("en-US")+" simulated openings. A first basket here is the first made field goal; free throws don't count, which matches how most sportsbooks settle it, but check your book's rules. Starters are the players who started each team's last game, swapping in the next-highest-minute player for anyone listed Out. EV per $100 is what a $100 bet at the best price would return on average if the sim's chance is right; book prices on first basket carry a large margin, so most are negative. Prices link to each sportsbook.";
 }
+function drawRecord(r){if(!r||!r.games)return;var pct=function(x){return x==null?"-":Math.round(x*100)+"%"},p1=function(x){return x==null?"-":(x*100).toFixed(1)+"%"};
+  function tile(v,l){return'<div><span class="num">'+v+'</span>'+l+'</div>'}
+  var h='<div class="ps-chk">'+tile(r.games,"games graded"+(r.pending?" ("+r.pending+" waiting)":""))
+   +tile(p1(r.avg_chance_actual),"average chance the sim gave the real first scorer")
+   +tile(p1(r.avg_book_chance_actual),"same, from the sportsbooks' prices (margin removed)")
+   +tile(pct(r.top3),"first scorer was in the sim's top 3")
+   +tile(pct(r.team_first_right),"sim's favored team scored first")
+   +tile(pct(r.tip_winner_scored_first),"team with the opening possession scored first")
+   +tile(r.bets.count?r.bets.wins+"–"+(r.bets.count-r.bets.wins):"-","+EV bets at the best price"+(r.bets.count?" ("+(r.bets.units>=0?"+":"")+r.bets.units+" units)":""))+'</div>';
+  var cats=Object.keys(r.how_actual).concat(Object.keys(r.how_sim)).filter(function(v,i,a){return a.indexOf(v)===i});
+  h+='<div class="fb-sum"><div><div class="fb-k">How first baskets went in: real vs. sim</div>'+cats.map(function(k){var a=r.how_actual[k]||0,b=r.how_sim[k]||0;
+    return'<div class="fb-bar" style="grid-template-columns:96px 1fr 92px"><span>'+k+'</span><span><i style="width:'+(a*100)+'%;background:var(--ink)"></i><i style="width:'+(b*100)+'%;margin-top:3px"></i></span><span class="num" style="font-size:15px">'+pct(a)+' / '+pct(b)+'</span></div>'}).join("")
+    +'<p class="tm" style="margin:6px 0 0">Dark bar: real games. Orange bar: the sim. Starters scored '+pct(r.starter_share)+' of first baskets.</p></div></div>';
+  if(r.recent&&r.recent.length)h+='<div class="tw"><table class="nw"><thead><tr><th>Date</th><th>Game</th><th>First basket</th><th style="text-align:right">Sim chance</th><th style="text-align:right">Books</th></tr></thead><tbody>'
+    +r.recent.map(function(x){return'<tr><td class="tm">'+x.date.slice(5).replace("-","/")+'</td><td>'+esc(x.game)+'</td><td><span class="nm">'+esc(x.n)+'</span> <span class="tm">'+esc(x.how)+(x.rank?" · #"+x.rank+" in the sim":"")+'</span></td><td class="num" style="text-align:right">'+p1(x.p)+'</td><td class="num" style="text-align:right">'+p1(x.p_book)+'</td></tr>'}).join("")+'</tbody></table></div>';
+  h+='<p class="sub" style="font-size:13px;margin-top:8px">Higher "average chance" means sharper odds: a sim that gives the real first scorer more chance than the books do on average is pricing this market better than they are. +EV bets count 1 unit on every player the sim rated profitable at the best available price. A few dozen games is still a small sample.</p>';
+  document.getElementById("fbRec").innerHTML=h}
+get("fb_results.json").then(drawRecord);
 document.getElementById("fbGame").onchange=choose;
 document.getElementById("fbTip").onchange=function(){tip=+this.value;document.getElementById("fbOne").innerHTML='<p class="sub">Updating…</p>';setTimeout(function(){runMany();one()},10)};
 document.getElementById("fbGo").onclick=function(){if(E)one()};
