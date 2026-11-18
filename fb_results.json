@@ -1,0 +1,38 @@
+{
+ "generated": "2026-11-18T17:01:54+00:00",
+ "games": 0,
+ "pending": 12,
+ "avg_chance_actual": null,
+ "avg_book_chance_actual": null,
+ "book_games": 0,
+ "top3": null,
+ "team_first_right": null,
+ "tip_winner_scored_first": null,
+ "starter_share": null,
+ "how_actual": {},
+ "how_sim": {},
+ "bets": {
+  "count": 0,
+  "wins": 0,
+  "units": 0
+ },
+ "recent": [],
+ "season": {
+  "games": 210,
+  "how": {
+   "Three": 0.319,
+   "Jump shot": 0.276,
+   "Layup": 0.214,
+   "Dunk": 0.119,
+   "Floater": 0.071
+  },
+  "position": {
+   "Guard": 0.443,
+   "Forward": 0.405,
+   "Center": 0.152
+  },
+  "starter_share": 1.0,
+  "tip_winner_scored_first": 0.6,
+  "first_quarter": 1.0
+ }
+}
