@@ -3,6 +3,9 @@
   "main": "worker.js",
   "compatibility_date": "2026-10-15",
   "keep_vars": true,
+  // Update times, in UTC: 8 AM, 12 PM, 3 PM and 6 PM Eastern during standard time
+  // (one hour later in Eastern while daylight saving time is on, March to November).
+  "triggers": { "crons": ["0 13 * * *", "0 17 * * *", "0 20 * * *", "0 23 * * *"] },
   "assets": {
     "directory": "./",
     "binding": "ASSETS",

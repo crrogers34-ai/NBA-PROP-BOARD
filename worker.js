@@ -20,12 +20,31 @@ export default {
     const path = u.pathname;
     if (path === "/api/ping") {
       // Setup check: shows this code is live and which setting names are missing (never the values).
-      return new Response(JSON.stringify({ worker: "v3", missing: NAMES.filter((k) => !env[k]) }), {
+      return new Response(JSON.stringify({ worker: "v3", missing: NAMES.filter((k) => !env[k]),
+        updates: env.GH_DISPATCH_TOKEN ? "scheduled by Cloudflare" : "add GH_DISPATCH_TOKEN to schedule updates" }), {
         headers: { "content-type": "application/json", "cache-control": "no-store" },
       });
     }
     const h = ROUTES[path];
     if (h) return h({ request, env });
     return gate({ request, env, next: () => env.ASSETS.fetch(request) });
+  },
+  // Cloudflare cron triggers (see "triggers" in wrangler.jsonc) start the GitHub "Update board" workflow on time.
+  // GitHub's own schedule often runs hours late, so it is only a backup.
+  async scheduled(event, env, ctx) {
+    if (!env.GH_DISPATCH_TOKEN) return;
+    const repo = env.GH_REPO || "crrogers34-ai/NBA-PROP-BOARD";
+    ctx.waitUntil(
+      fetch(`https://api.github.com/repos/${repo}/actions/workflows/update-board.yml/dispatches`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.GH_DISPATCH_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "nba-prop-board-scheduler",
+        },
+        body: JSON.stringify({ ref: "main" }),
+      }).then(async (r) => { if (!r.ok) console.log("Update board dispatch failed", r.status, await r.text()); })
+    );
   },
 };
