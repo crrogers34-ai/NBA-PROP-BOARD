@@ -1,35 +1,75 @@
 {
- "generated": "2026-11-20T01:54:12+00:00",
- "games": 12,
- "pending": 4,
- "avg_chance_actual": 0.1087,
- "avg_book_chance_actual": 0.1016,
- "book_games": 12,
- "top3": 0.333,
- "team_first_right": 0.5,
- "tip_winner_scored_first": 0.583,
+ "generated": "2026-11-20T13:18:53+00:00",
+ "games": 16,
+ "pending": 0,
+ "avg_chance_actual": 0.1139,
+ "avg_book_chance_actual": 0.1,
+ "book_games": 16,
+ "top3": 0.438,
+ "team_first_right": 0.562,
+ "tip_winner_scored_first": 0.438,
  "starter_share": 1.0,
  "how_actual": {
-  "Three": 0.417,
-  "Dunk": 0.25,
-  "Layup": 0.167,
-  "Jump shot": 0.083,
-  "Floater": 0.083
+  "Three": 0.438,
+  "Dunk": 0.188,
+  "Layup": 0.188,
+  "Jump shot": 0.125,
+  "Floater": 0.062
  },
  "how_sim": {
-  "Three": 0.332,
-  "Layup": 0.238,
-  "Jump shot": 0.217,
-  "Dunk": 0.079,
+  "Three": 0.34,
+  "Layup": 0.234,
+  "Jump shot": 0.22,
   "Floater": 0.075,
-  "Hook shot": 0.059
+  "Dunk": 0.075,
+  "Hook shot": 0.057
  },
  "bets": {
-  "count": 31,
-  "wins": 5,
-  "units": 11.08
+  "count": 43,
+  "wins": 9,
+  "units": 37.08
  },
  "recent": [
+  {
+   "date": "2026-11-19",
+   "game": "GSW at MEM",
+   "n": "Jaylen Wells",
+   "t": "MEM",
+   "how": "Three",
+   "p": 0.0839,
+   "rank": 9,
+   "p_book": 0.0684
+  },
+  {
+   "date": "2026-11-19",
+   "game": "LAC at SAS",
+   "n": "Darius Garland",
+   "t": "LAC",
+   "how": "Jump shot",
+   "p": 0.1239,
+   "rank": 2,
+   "p_book": 0.0988
+  },
+  {
+   "date": "2026-11-19",
+   "game": "NYK at MIN",
+   "n": "Ayo Dosunmu",
+   "t": "MIN",
+   "how": "Three",
+   "p": 0.1342,
+   "rank": 3,
+   "p_book": 0.0943
+  },
+  {
+   "date": "2026-11-19",
+   "game": "POR at MIL",
+   "n": "Damian Lillard",
+   "t": "POR",
+   "how": "Layup",
+   "p": 0.1751,
+   "rank": 1,
+   "p_book": 0.1191
+  },
   {
    "date": "2026-11-18",
    "game": "ATL at OKC",
@@ -139,34 +179,24 @@
    "p": 0.2492,
    "rank": 1,
    "p_book": 0.204
-  },
-  {
-   "date": "2026-11-18",
-   "game": "WAS at TOR",
-   "n": "AJ Dybantsa",
-   "t": "WAS",
-   "how": "Dunk",
-   "p": 0.0774,
-   "rank": 9,
-   "p_book": 0.085
   }
  ],
  "season": {
-  "games": 222,
+  "games": 226,
   "how": {
-   "Three": 0.324,
-   "Jump shot": 0.266,
+   "Three": 0.327,
+   "Jump shot": 0.265,
    "Layup": 0.212,
-   "Dunk": 0.126,
-   "Floater": 0.072
+   "Dunk": 0.124,
+   "Floater": 0.071
   },
   "position": {
-   "Guard": 0.446,
-   "Forward": 0.405,
-   "Center": 0.149
+   "Guard": 0.451,
+   "Forward": 0.403,
+   "Center": 0.146
   },
   "starter_share": 1.0,
-  "tip_winner_scored_first": 0.599,
+  "tip_winner_scored_first": 0.588,
   "first_quarter": 1.0
  }
 }
