@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-19T19:16:36+00:00",
+ "generated": "2026-11-20T01:54:12+00:00",
  "games": 12,
- "pending": 0,
+ "pending": 4,
  "avg_chance_actual": 0.1087,
  "avg_book_chance_actual": 0.1016,
  "book_games": 12,
@@ -36,7 +36,7 @@
    "n": "Aday Mara",
    "t": "OKC",
    "how": "Dunk",
-   "p": 0.0,
+   "p": 0,
    "rank": null,
    "p_book": 0.0741
   },
