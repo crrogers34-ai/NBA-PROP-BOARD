@@ -85,7 +85,7 @@ showT(ST.slice(0,3),true);showG(SG,true);showP(samplePerfect(),true);
 Promise.all([get("board.json"),get("probable.json"),get("games.json"),get("trends.json")]).then(function(a){var b=a[0],p=a[1],gj=a[2],tj=a[3];
 if(tj&&((tj.up||[]).length||(tj.down||[]).length))showTr(tj.up||[],tj.down||[],false);
 if(gj&&gj.games&&gj.games.length)showG(gj.games,false);if(gj&&gj.perfect)showP(gj.perfect,false);
-var E=b&&b.props?topEdges(b.props):[];if(E.length)showE(E,false,b.generated?new Date(b.generated).toLocaleDateString():"");
+if(b&&b.model_weight!=null)MW=b.model_weight;if(b&&b.proj_error!=null)PE=b.proj_error;var E=b&&b.props?topEdges(b.props):[];if(E.length)showE(E,false,b.generated?new Date(b.generated).toLocaleDateString():"");
 var T=p&&p.teams?p.teams.slice().sort(function(x,y){return y.win-x.win}).slice(0,3):[];if(T.length)showT(T,false)});
 </script>
 <script src="config.js"></script><script src="auth.js"></script><script src="menu.js"></script>

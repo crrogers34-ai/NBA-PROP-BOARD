@@ -47,7 +47,7 @@ if(plat==="dk")return pts+.5*t3+1.25*r+1.5*a+2*s+2*b-.5*to+1.5*(p.dd||0)+3*(p.td
 return pts+1.2*r+1.5*a+3*s+3*b-to}
 /* Edge math (same as build_nba.py): widen the range for projection error, then blend the
    model's chance with the book's no-vig price. MW is the share given to the model. */
-var MW=0.4,PE=0.12;
+var MW=0.2,PE=0.12;   /* defaults; the live board.json carries the fitted values */
 function wsd(d){return Math.sqrt(d.sd*d.sd+Math.pow(PE*d.proj,2))}
 function blend(d,b,sd){var io=imp(b.ov),iu=imp(b.un),pm=1-cdf((b.line-d.proj)/(sd||wsd(d))),po=MW*pm+(1-MW)*(io/(io+iu)),eo=po-io,eu=(1-po)-iu,o=eo>=eu;
 return{bk:b.bk,line:b.line,ov:b.ov,un:b.un,side:o?"Over":"Under",odds:o?b.ov:b.un,p:o?po:1-po,e:Math.max(eo,eu)*100}}

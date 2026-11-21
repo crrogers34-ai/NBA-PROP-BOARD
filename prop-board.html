@@ -132,7 +132,7 @@ function tab(n){var ids=["bd","ck"],ts=["t1","t2"];ids.forEach(function(d,i){doc
 document.getElementById("t1").onclick=function(){tab(0)};document.getElementById("t2").onclick=function(){tab(1)};
 ck();draw();
 setInterval(function(){fg();draw()},60000);
-get("board.json").then(function(j){if(!j)return;var P=(j.props||[]).filter(function(p){return p.books&&p.books.length});if(!P.length)return;
+get("board.json").then(function(j){if(!j)return;if(j.model_weight!=null)MW=j.model_weight;if(j.proj_error!=null)PE=j.proj_error;var P=(j.props||[]).filter(function(p){return p.books&&p.books.length});if(!P.length)return;
 R=build(P);open=null;fill();draw();
 document.getElementById("nt").textContent="Live board: "+R.length+" props. Updated "+(j.generated?new Date(j.generated).toLocaleString():"recently")+"."});
 </script>

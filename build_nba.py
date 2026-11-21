@@ -36,6 +36,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+import calibrate
 import espn_source
 
 ET = ZoneInfo("America/New_York")
@@ -64,7 +65,7 @@ ROTATION_MIN = 6.0      # players projected under this are left out of the minut
 STALE_DAYS = 10         # no game in this many days (with team games played) = treat as out
 # Edge math shared with prop-board.html: widen the spread for projection error, then blend the
 # model's chance with the book's no-vig price (MODEL_WEIGHT = share given to the model).
-MODEL_WEIGHT, PROJ_ERROR = 0.4, 0.12
+MODEL_WEIGHT, PROJ_ERROR = 0.2, 0.12   # defaults; calibration.json replaces them once props are graded
 MIN_EDGE = 2.0          # percent; picks at or above this are logged and graded in results.json
 MB = list(range(-30, 31, 3))
 TB = list(range(180, 271, 6))
@@ -866,21 +867,22 @@ def grade_first_baskets(out_dir, actual, slate_day):
 
 
 # ---------------------------------------------------------------- results tracker
-def blended(p, b):
+def blended(p, b, weight=MODEL_WEIGHT, pe=PROJ_ERROR):
     """Same math as prop-board.html: -> (side, line, odds, chance, edge %) for one book."""
-    sd = math.sqrt(p["sd"] ** 2 + (PROJ_ERROR * p["proj"]) ** 2)
+    sd = math.sqrt(p["sd"] ** 2 + (pe * p["proj"]) ** 2)
     io, iu = (-o / (-o + 100) if o < 0 else 100 / (o + 100) for o in (b["ov"], b["un"]))
     pm = 1 - ncdf((b["line"] - p["proj"]) / sd)
-    po = MODEL_WEIGHT * pm + (1 - MODEL_WEIGHT) * io / (io + iu)
+    po = weight * pm + (1 - weight) * io / (io + iu)
     eo, eu = po - io, (1 - po) - iu
     if eo >= eu:
         return "Over", b["line"], b["ov"], po, eo * 100
     return "Under", b["line"], b["un"], 1 - po, eu * 100
 
 
-def track_picks(board, slate_day, logs, out_dir):
-    """Logs every prop the board flags (best book, edge >= MIN_EDGE) before tip-off, grades
-    earlier picks from the box scores, and writes picks_log.json and results.json."""
+def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ERROR):
+    """Logs the board's best flagged prop for each player (best book, edge >= MIN_EDGE) before tip-off,
+    grades earlier picks from the box scores, and writes picks_log.json and results.json. One pick per
+    player per night, so one big game can't swing several picks at once."""
     lp, rp = os.path.join(out_dir, "picks_log.json"), os.path.join(out_dir, "results.json")
     picks = []
     if os.path.exists(lp):
@@ -888,16 +890,20 @@ def track_picks(board, slate_day, logs, out_dir):
             picks = json.load(f).get("picks", [])
     by_id = {x["id"]: x for x in picks}
     now = datetime.now(timezone.utc)
+    best_of = {}
     for p in board:
         if p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now:
             continue   # game started: keep whatever was logged before tip-off
-        best = max((blended(p, b) + (b["bk"],) for b in p["books"]), key=lambda x: x[4])
+        best = max((blended(p, b, weight, pe) + (b["bk"],) for b in p["books"]), key=lambda x: x[4])
+        if best[4] >= MIN_EDGE and (p["n"] not in best_of or best[4] > best_of[p["n"]][1][4]):
+            best_of[p["n"]] = (p, best)
+    started = {p["n"] for p in board if p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now}
+    for k in [k for k, x in by_id.items() if x["date"] == slate_day.isoformat() and x.get("result") is None
+              and x["n"] not in started and (x["n"] not in best_of or best_of[x["n"]][0]["m"] != x["m"])]:
+        del by_id[k]   # no longer this player's best flagged prop before tip-off
+    for p, best in best_of.values():
         side, line, odds, chance, edge, bk = best
         pid = f"{slate_day.isoformat()}-{p['n']}-{p['m']}"
-        if edge < MIN_EDGE:
-            if pid in by_id and by_id[pid].get("result") is None:
-                del by_id[pid]   # no longer flagged before tip-off
-            continue
         by_id[pid] = {"id": pid, "date": slate_day.isoformat(), "n": p["n"], "t": p["t"], "o": p["o"], "m": p["m"],
                       "proj": p["proj"], "side": side, "line": line, "odds": odds, "bk": bk, "p": round(chance, 3),
                       "e": round(edge, 1), "posted": now.isoformat(), "result": None, "actual": None}
@@ -1040,6 +1046,23 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
         log(f"  {len(unmatched)} prop players had no projection (out, or name mismatch): {', '.join(sorted(unmatched)[:12])}")
     log(f"  {len(board)} props on the board")
 
+    # grade every prop and fit the edge settings to the results (see calibrate.py)
+    cal = {"weight": MODEL_WEIGHT, "proj_error": PROJ_ERROR, "bias": {}, "scale": {}}
+    try:
+        n_new = calibrate.log_props([dict(p) for p in board], slate_day.isoformat(), args.out)
+        n_graded, prop_rows = calibrate.grade_props(args.out, all_cur, slate_day, COL)
+        cal = calibrate.fit(prop_rows)
+        with open(os.path.join(args.out, "calibration.json"), "w") as f:
+            json.dump(cal, f, indent=1)
+        sc = cal.get("score") or {}
+        log(f"Calibration: {n_new} props logged, {n_graded} newly graded, {cal['props_graded']} graded in all; "
+            f"model weight {cal['weight']} (best fit {cal['weight_best_fit']}); "
+            + ", ".join(f"{m} x{cal['bias'][m]:.3f} range x{cal['scale'][m]:.2f}" for m in calibrate.MARKETS)
+            + (f"; score market {sc['market_only']}, old {sc['old_settings']}, new {sc['new_settings']}" if sc else ""))
+    except Exception as ex:
+        log(f"Calibration skipped, using defaults: {ex}")
+    calibrate.apply(board, cal)
+
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     # probable.json
@@ -1169,7 +1192,7 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
             log(f"Could not update the first basket tracker: {ex}")
 
     try:
-        res = track_picks(board, slate_day, all_cur, args.out)
+        res = track_picks(board, slate_day, all_cur, args.out, cal["weight"], cal["proj_error"])
         o = res["overall"]
         log(f"Results tracker: {o['wins']}-{o['losses']}-{o['pushes']} graded, {res['pending']} pending")
     except Exception as ex:
@@ -1207,7 +1230,8 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     log(f"  injury report: {sum(len(v) for v in inj_teams.values())} players on tonight's teams")
 
     files = {
-        "board.json": {"generated": now, "slate": slate_day.isoformat(), "props": board},
+        "board.json": {"generated": now, "slate": slate_day.isoformat(), "model_weight": cal["weight"],
+                       "proj_error": cal["proj_error"], "props": board},
         "probable.json": {"generated": now, "teams": teams, "players": players},
         "games.json": {"generated": now, "games": games, "perfect": perfect[:8]},
         "lines.json": {"generated": now, "games": lines_out},
