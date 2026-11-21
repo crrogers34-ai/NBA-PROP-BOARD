@@ -1,0 +1,63 @@
+{
+ "generated": "2026-11-21T23:04:22+00:00",
+ "props_graded": 1639,
+ "weight": 0.122,
+ "weight_best_fit": 0.05,
+ "proj_error": 0.12,
+ "bias": {
+  "Points": 1.0265,
+  "Rebounds": 1.0064,
+  "Assists": 1.0406,
+  "3PM": 1.0458,
+  "PRA": 1.0192
+ },
+ "scale": {
+  "Points": 1.1198,
+  "Rebounds": 1.1245,
+  "Assists": 1.1212,
+  "3PM": 1.1253,
+  "PRA": 1.028
+ },
+ "markets": {
+  "Points": {
+   "props": 374,
+   "projection_fix": 1.048,
+   "range_fix": 1.216,
+   "over_rate": 0.489,
+   "market_over": 0.501
+  },
+  "Rebounds": {
+   "props": 355,
+   "projection_fix": 1.012,
+   "range_fix": 1.23,
+   "over_rate": 0.439,
+   "market_over": 0.493
+  },
+  "Assists": {
+   "props": 296,
+   "projection_fix": 1.082,
+   "range_fix": 1.244,
+   "over_rate": 0.541,
+   "market_over": 0.5
+  },
+  "3PM": {
+   "props": 295,
+   "projection_fix": 1.092,
+   "range_fix": 1.253,
+   "over_rate": 0.502,
+   "market_over": 0.485
+  },
+  "PRA": {
+   "props": 319,
+   "projection_fix": 1.037,
+   "range_fix": 1.054,
+   "over_rate": 0.486,
+   "market_over": 0.501
+  }
+ },
+ "score": {
+  "market_only": -0.6846,
+  "old_settings": -0.6879,
+  "new_settings": -0.6847
+ }
+}
