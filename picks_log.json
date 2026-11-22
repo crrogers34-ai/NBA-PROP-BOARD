@@ -471,6 +471,5 @@
 {"id":"2026-11-20-Jalen Green-PRA","date":"2026-11-20","n":"Jalen Green","t":"PHX","o":"UTA","m":"PRA","proj":24.4,"side":"Over","line":21.5,"odds":-104,"bk":"DK","p":0.53,"e":2.0,"posted":"2026-11-21T01:44:19.244509+00:00","result":"loss","actual":21.0},
 {"id":"2026-11-20-Christian Braun-Points","date":"2026-11-20","n":"Christian Braun","t":"DEN","o":"HOU","m":"Points","proj":12.7,"side":"Over","line":11.5,"odds":101,"bk":"DK","p":0.518,"e":2.0,"posted":"2026-11-21T01:44:19.244509+00:00","result":"win","actual":19.0},
 {"id":"2026-11-20-Anthony Black-PRA","date":"2026-11-20","n":"Anthony Black","t":"ORL","o":"BKN","m":"PRA","proj":23.1,"side":"Under","line":26.5,"odds":-115,"bk":"FD","p":0.555,"e":2.0,"posted":"2026-11-20T21:30:48.485821+00:00","result":"win","actual":26.0},
-{"id":"2026-11-20-Tre Jones-Points","date":"2026-11-20","n":"Tre Jones","t":"CHI","o":"WAS","m":"Points","proj":10.6,"side":"Under","line":12.5,"odds":-123,"bk":"DK","p":0.572,"e":2.0,"posted":"2026-11-20T21:30:48.485821+00:00","result":"win","actual":12.0},
-{"id":"2026-11-21-Derik Queen-Rebounds","date":"2026-11-21","n":"Derik Queen","t":"NOP","o":"SAS","m":"Rebounds","proj":2.7,"side":"Under","line":5.5,"odds":116,"bk":"FD","p":0.498,"e":3.5,"posted":"2026-11-21T23:04:22.820385+00:00","result":null,"actual":null}
+{"id":"2026-11-20-Tre Jones-Points","date":"2026-11-20","n":"Tre Jones","t":"CHI","o":"WAS","m":"Points","proj":10.6,"side":"Under","line":12.5,"odds":-123,"bk":"DK","p":0.572,"e":2.0,"posted":"2026-11-20T21:30:48.485821+00:00","result":"win","actual":12.0}
 ]}
