@@ -19,7 +19,7 @@
 <div id="bd"><div class="ctl">
 <label>Market <select id="mk"><option value="all">All markets</option></select></label>
 <label>Game <select id="gm"><option value="all">All games</option></select></label>
-<label>Min edge <input id="me" type="range" min="0" max="10" step="0.5" value="2"><b id="mv">2.0%</b></label>
+<label>Min edge <input id="me" type="range" min="0" max="10" step="0.5" value="1"><b id="mv">1.0%</b></label>
 </div>
 <p class="note" id="lv" hidden></p>
 <div class="tw"><table><thead><tr>
@@ -91,7 +91,7 @@ function draw(){
 var m=mk.value,g=gm.value,min=parseFloat(me.value);mv.textContent=min.toFixed(1)+"%";
 var hid=R.filter(live).length,lv=document.getElementById("lv");lv.hidden=!hid;lv.textContent=hid+" props are hidden because their games have tipped off. Lines move once a game is live, so pregame projections would show misleading edges.";
 var rows=R.filter(function(r){return!live(r)&&(m==="all"||r.m===m)&&(g==="all"||r.g===g)&&r.e>=min}).sort(function(a,b){return b.e-a.e});
-if(!rows.length){tb.innerHTML='<tr><td colspan="7" class="empty">No props clear this edge. Lower the minimum edge or pick another market or game.</td></tr>';return}
+if(!rows.length){var pre=R.filter(function(r){return!live(r)}),top=pre.reduce(function(a,r){return Math.max(a,r.e)},-99);tb.innerHTML='<tr><td colspan="7" class="empty">'+(pre.length&&top<min?'No props clear '+min.toFixed(1)+'% right now. The best edge on the board is '+(top>=0?'+':'')+top.toFixed(1)+'%. The lines look sharp today, so we\'re not forcing plays. Check back after the next update, when injury news moves the lines.':'No props clear this edge. Lower the minimum edge or pick another market or game.')+'</td></tr>';return}
 tb.innerHTML=rows.map(function(r){
 var k=r.n+'|'+r.m,s='<tr class="r" tabindex="0" data-k="'+k+'"><td><div class="nm">'+r.n+(r.inj?' <span class="tg">'+r.inj+'</span>':'')+(r.role?' <span class="tg '+(r.role==="Role up"?"up":"dn")+'">'+r.role+'</span>':'')+'</div><div class="tm">'+r.t+' vs '+r.o+'</div></td>'
 +'<td>'+r.m+'<div class="tm">'+r.bk+'</div></td>'

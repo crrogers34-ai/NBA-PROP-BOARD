@@ -66,7 +66,7 @@ STALE_DAYS = 10         # no game in this many days (with team games played) = t
 # Edge math shared with prop-board.html: widen the spread for projection error, then blend the
 # model's chance with the book's no-vig price (MODEL_WEIGHT = share given to the model).
 MODEL_WEIGHT, PROJ_ERROR = 0.2, 0.12   # defaults; calibration.json replaces them once props are graded
-MIN_EDGE = 2.0          # percent; picks at or above this are logged and graded in results.json
+MIN_EDGE = 1.0          # percent; picks at or above this are logged and graded in results.json
 MB = list(range(-30, 31, 3))
 TB = list(range(180, 271, 6))
 

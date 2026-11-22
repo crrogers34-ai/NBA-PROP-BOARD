@@ -46,7 +46,7 @@ Once all four are set, the board, probable, lines, trends, picks and first baske
 - **Injuries** come from ESPN's injury report automatically. To override one, add a line to `injuries.csv`, for example `Joel Embiid,Out`, and commit it. Out and Doubtful players are removed from the projections; other statuses are tagged.
 - **First basket tracking:** after `build_nba.py`, the workflow runs `node fb_predict.js`, which logs each game's first basket chances to `fb_log.json` before tip-off. The next run reads the real first basket from ESPN's play-by-play and writes the record to `fb_results.json`, shown at the bottom of the First Basket page.
 - **Calibration:** every pregame prop is saved to `props_log.json` and graded from the box scores. Each run fits a per-market projection correction, range width and model weight from those results (`calibrate.py`) and writes them to `calibration.json`, which also scores the new settings against the market alone. `board.json` carries the fitted model weight for the pages. `backfill_props.py` rebuilt the log from earlier boards once.
-- **Results:** each player's best prop the board flags at a 2% edge or more (one per night) is logged before tip-off in `picks_log.json` and graded after the game. `results.json` shows the running record by market and by date.
+- **Results:** each player's best prop the board flags at a 1% edge or more (one per night) is logged before tip-off in `picks_log.json` and graded after the game. `results.json` shows the running record by market and by date.
 
 ## Running it on your own computer
 
