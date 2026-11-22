@@ -19,7 +19,8 @@
 <div id="bd"><div class="ctl">
 <label>Market <select id="mk"><option value="all">All markets</option></select></label>
 <label>Game <select id="gm"><option value="all">All games</option></select></label>
-<label>Min edge <input id="me" type="range" min="0" max="10" step="0.5" value="1"><b id="mv">1.0%</b></label>
+<label>Show <select id="sh"><option value="plays">Today's plays</option><option value="all">All props</option></select></label>
+<label id="mel" hidden>Min edge <input id="me" type="range" min="0" max="10" step="0.5" value="0"><b id="mv">0.0%</b></label>
 </div>
 <p class="note" id="lv" hidden></p>
 <div class="tw"><table><thead><tr>
@@ -31,12 +32,13 @@
 <script src="sim.js"></script>
 <script>
 var ORDER=["Points","Rebounds","Assists","3PM","PRA"];
-function build(P){return P.map(function(d){
+function build(P){markPlays(P,live);return P.map(function(d){
 var sd=wsd(d),bs=d.books.map(function(b){return blend(d,b,sd)});
 var best=bs.reduce(function(a,b){return b.e>a.e?b:a}),worst=bs.reduce(function(a,b){return b.e<a.e?b:a});
-return{g:d.g||[d.o,d.t].join("@"),when:d.when||'',kick:d.kick||'',inj:d.inj||'',role:d.role||'',l5:d.last5||[],n:d.n,t:d.t,o:d.o,m:d.m,proj:d.proj,sd:sd,bs:bs,line:best.line,side:best.side,odds:best.odds,p:best.p,e:best.e,bk:best.bk,gain:best.e-worst.e}})}
+if(d.play&&d.pick){var pb=d.books.filter(function(b){return b.bk===d.pick.bk})[0];if(pb)best=sideEdge(d,pb,sd,d.pick.side)}
+return{play:!!d.play,g:d.g||[d.o,d.t].join("@"),when:d.when||'',kick:d.kick||'',inj:d.inj||'',role:d.role||'',l5:d.last5||[],n:d.n,t:d.t,o:d.o,m:d.m,proj:d.proj,sd:sd,bs:bs,line:best.line,side:best.side,odds:best.odds,p:best.p,e:best.e,bk:best.bk,gain:best.e-worst.e}})}
 var R=build(sampleBoard());
-var mk=document.getElementById("mk"),me=document.getElementById("me"),mv=document.getElementById("mv"),tb=document.getElementById("tb"),open=null;
+var sh=document.getElementById("sh"),mk=document.getElementById("mk"),me=document.getElementById("me"),mv=document.getElementById("mv"),tb=document.getElementById("tb"),open=null;
 var gm=document.getElementById("gm"),want="all";
 try{want=new URLSearchParams(location.search).get("game")||"all"}catch(e){}
 function live(r){return !!r.kick&&Date.parse(r.kick)<=Date.now()}
@@ -88,23 +90,23 @@ function bt(r){
 return '<div style="overflow-x:auto"><table class="bk"><thead><tr><th>Book</th><th>Line</th><th>Over</th><th>Under</th><th>Edge</th><th></th></tr></thead><tbody>'+r.bs.map(function(b,i){
 return '<tr'+(b.bk===r.bk?' class="best"':'')+'><td>'+b.bk+'</td><td>'+b.line+'</td><td>'+fo(b.ov)+'</td><td>'+fo(b.un)+'</td><td class="'+(b.e>=0?'pos':'neg')+'">'+(b.e>=0?'+':'')+b.e.toFixed(1)+'% '+b.side+'</td><td><button class="lg" data-k="'+r.n+'|'+r.m+'" data-b="'+i+'">Log</button></td></tr>'}).join('')+'</tbody></table></div>'}
 function draw(){
-var m=mk.value,g=gm.value,min=parseFloat(me.value);mv.textContent=min.toFixed(1)+"%";
+var m=mk.value,g=gm.value,pl=sh.value==="plays",min=parseFloat(me.value);mv.textContent=min.toFixed(1)+"%";document.getElementById("mel").hidden=pl;
 var hid=R.filter(live).length,lv=document.getElementById("lv");lv.hidden=!hid;lv.textContent=hid+" props are hidden because their games have tipped off. Lines move once a game is live, so pregame projections would show misleading edges.";
-var rows=R.filter(function(r){return!live(r)&&(m==="all"||r.m===m)&&(g==="all"||r.g===g)&&r.e>=min}).sort(function(a,b){return b.e-a.e});
-if(!rows.length){var pre=R.filter(function(r){return!live(r)}),top=pre.reduce(function(a,r){return Math.max(a,r.e)},-99);tb.innerHTML='<tr><td colspan="7" class="empty">'+(pre.length&&top<min?'No props clear '+min.toFixed(1)+'% right now. The best edge on the board is '+(top>=0?'+':'')+top.toFixed(1)+'%. The lines look sharp today, so we\'re not forcing plays. Check back after the next update, when injury news moves the lines.':'No props clear this edge. Lower the minimum edge or pick another market or game.')+'</td></tr>';return}
+var rows=R.filter(function(r){return!live(r)&&(m==="all"||r.m===m)&&(g==="all"||r.g===g)&&(pl?r.play:r.e>=min)}).sort(function(a,b){return b.e-a.e});
+if(!rows.length){tb.innerHTML='<tr><td colspan="7" class="empty">'+(pl?(R.some(function(r){return!live(r)})?'No plays for this market or game. Pick another, or switch to All props.':'No plays right now. Every game on today\'s slate has tipped off. The next update posts tomorrow\'s plays.'):'No props clear this edge. Lower the minimum edge or pick another market or game.')+'</td></tr>';return}
 tb.innerHTML=rows.map(function(r){
 var k=r.n+'|'+r.m,s='<tr class="r" tabindex="0" data-k="'+k+'"><td><div class="nm">'+r.n+(r.inj?' <span class="tg">'+r.inj+'</span>':'')+(r.role?' <span class="tg '+(r.role==="Role up"?"up":"dn")+'">'+r.role+'</span>':'')+'</div><div class="tm">'+r.t+' vs '+r.o+'</div></td>'
 +'<td>'+r.m+'<div class="tm">'+r.bk+'</div></td>'
 +'<td class="num '+(r.side==="Over"?"ov":"un")+'">'+r.side+' '+r.line+'</td>'
 +'<td class="num">'+fo(r.odds)+'</td><td class="num">'+r.proj+'</td>'
 +'<td class="num">'+(r.p*100).toFixed(1)+'%</td>'
-+'<td><div class="eb"><span class="num">+'+r.e.toFixed(1)+'%</span><i style="width:'+Math.min(r.e*7,70)+'px"></i></div></td></tr>';
++'<td><div class="eb"><span class="num">'+(r.e>=0?'+':'')+r.e.toFixed(1)+'%</span><i style="width:'+Math.max(0,Math.min(r.e*7,70))+'px"></i></div></td></tr>';
 if(open===k)s+='<tr class="dt"><td colspan="7"><div class="dtin"><div class="dtw"><div class="l5"><div class="l5h">Projected range</div>'+chart(r)+'</div>'+last5(r)+'</div>'+bt(r)+'<p>Blending the projection with the book\'s no-vig price gives '+r.side+' '+r.line+' a '+(r.p*100).toFixed(1)+'% chance. The book prices it at '+(imp(r.odds)*100).toFixed(1)+'%. Shopping across books adds '+r.gain.toFixed(1)+' points of edge over the worst price.</p></div></td></tr>';
 return s}).join("")}
 tb.addEventListener("click",function(e){var lb=e.target.closest(".lg");if(lb){logBet(lb);return}var tr=e.target.closest("tr.r");if(!tr)return;
 var k=tr.getAttribute("data-k");open=open===k?null:k;draw()});
 tb.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){var tr=e.target.closest("tr.r");if(tr){e.preventDefault();tr.click()}}});
-mk.onchange=me.oninput=function(){open=null;draw()};
+mk.onchange=me.oninput=sh.onchange=function(){open=null;draw()};
 gm.onchange=function(){want=gm.value;open=null;setUrl();draw()};
 var BETS=[];try{BETS=JSON.parse(localStorage.getItem("nba_bets")||"[]")}catch(e){}
 function sv(){try{localStorage.setItem("nba_bets",JSON.stringify(BETS))}catch(e){}}
@@ -132,7 +134,7 @@ function tab(n){var ids=["bd","ck"],ts=["t1","t2"];ids.forEach(function(d,i){doc
 document.getElementById("t1").onclick=function(){tab(0)};document.getElementById("t2").onclick=function(){tab(1)};
 ck();draw();
 setInterval(function(){fg();draw()},60000);
-get("board.json").then(function(j){if(!j)return;if(j.model_weight!=null)MW=j.model_weight;if(j.proj_error!=null)PE=j.proj_error;var P=(j.props||[]).filter(function(p){return p.books&&p.books.length});if(!P.length)return;
+get("board.json").then(function(j){if(!j)return;if(j.model_weight!=null)MW=j.model_weight;if(j.proj_error!=null)PE=j.proj_error;if(j.pick_weight!=null)PW=j.pick_weight;if(j.pick_edge!=null)PICK=j.pick_edge;if(j.min_plays!=null)MINP=j.min_plays;var P=(j.props||[]).filter(function(p){return p.books&&p.books.length});if(!P.length)return;
 R=build(P);open=null;fill();draw();
 document.getElementById("nt").textContent="Live board: "+R.length+" props. Updated "+(j.generated?new Date(j.generated).toLocaleString():"recently")+"."});
 </script>

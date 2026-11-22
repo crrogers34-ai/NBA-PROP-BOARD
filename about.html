@@ -46,7 +46,8 @@
 <h2>How edge and fair value are calculated</h2>
 <ul class="steps">
 <li><b>Fair value</b> is the price with no sportsbook margin, converted from the model's chance. A 60% chance is fair at about -150.</li>
-<li><b>Our chance</b> on the Prop Board is not the raw projection. Every prop on the board, not just the ones we flag, is graded after the game. Those results set three things, and they update with every run: a correction for each market when projections run high or low, how wide each projected range should be, and how much say the model gets next to the sportsbook's price after removing its margin. Betting lines are sharp, so the market usually gets most of the say, and a projection that looks far off can't turn straight into a huge edge. Each fitted setting starts near a cautious default and moves toward what the results show as more games are graded.</li>
+<li><b>Plays.</b> We blend our projection with the sportsbook's price after removing its margin. Each player's best prop becomes a play when that blend, with our model given a 40% say, shows an edge of 7% or more. On a slate with fewer than three of those, the next best props fill in, so every game day has plays.</li>
+<li><b>The edge we show</b> uses a more cautious blend that gives our model a 25% say. The plays are the same, but the number is smaller, closer to what the results so far support. Betting lines are sharp, so treat every edge as an estimate.</li>
 <li><b>Edge</b> is that blended chance minus the chance implied by a book's price. A positive edge means the book pays more than we think the bet is worth.</li>
 <li><b>Line shopping and parlays</b> only compare books that post the same line. Parlay prices multiply the legs together, but sportsbooks price same-game parlays differently because the legs are related, so the final price at the book is often lower.</li>
 </ul>
@@ -58,7 +59,7 @@
 <li>Blowouts cut starters' minutes, which the bell-shaped ranges only partly capture.</li>
 <li>Large edges often mean the model is missing something the market knows. Check the news before acting.</li>
 <li>Early in the season, data is thin and roles are still settling.</li>
-<li>Each player's best prop the board flags at a 1% edge or more is logged before tip-off and graded after the game, one pick per player per night, so the method's real record builds up over the season.</li>
+<li>Every play is logged before tip-off and graded after the game, so the method's real record builds up over the season.</li>
 <li>Nothing here is a guarantee or financial advice.</li>
 </ul>
 <h2>Play responsibly</h2>

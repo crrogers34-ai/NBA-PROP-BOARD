@@ -47,9 +47,16 @@ if(plat==="dk")return pts+.5*t3+1.25*r+1.5*a+2*s+2*b-.5*to+1.5*(p.dd||0)+3*(p.td
 return pts+1.2*r+1.5*a+3*s+3*b-to}
 /* Edge math (same as build_nba.py): widen the range for projection error, then blend the
    model's chance with the book's no-vig price. MW is the share given to the model. */
-var MW=0.2,PE=0.12;   /* defaults; the live board.json carries the fitted values */
+var MW=0.25,PE=0.12,PW=0.4,PICK=7,MINP=3;   /* defaults; the live board.json carries the values in use */
 function wsd(d){return Math.sqrt(d.sd*d.sd+Math.pow(PE*d.proj,2))}
 function blend(d,b,sd){var io=imp(b.ov),iu=imp(b.un),pm=1-cdf((b.line-d.proj)/(sd||wsd(d))),po=MW*pm+(1-MW)*(io/(io+iu)),eo=po-io,eu=(1-po)-iu,o=eo>=eu;
 return{bk:b.bk,line:b.line,ov:b.ov,un:b.un,side:o?"Over":"Under",odds:o?b.ov:b.un,p:o?po:1-po,e:Math.max(eo,eu)*100}}
+/* Plays (same rule as build_nba.py mark_plays): each player's best prop by its edge with model weight PW;
+   a play at PICK% or more, topped up to MINP plays. The board shows the edge at the lower weight MW. */
+function sideEdge(d,b,sd,side){var io=imp(b.ov),iu=imp(b.un),po=MW*(1-cdf((b.line-d.proj)/(sd||wsd(d))))+(1-MW)*(io/(io+iu)),o=side==="Over";
+return{bk:b.bk,line:b.line,ov:b.ov,un:b.un,side:side,odds:o?b.ov:b.un,p:o?po:1-po,e:(o?po-io:1-po-iu)*100}}
+function markPlays(P,isLive){if(P.some(function(d){return d.play!=null}))return;var by={},m=MW;MW=PW;
+P.forEach(function(d){if(!d.books||!d.books.length||isLive(d))return;var sd=wsd(d),b=null;d.books.forEach(function(x){x=blend(d,x,sd);if(!b||x.e>b.e)b=x});d._pe=b.e;d._pk={bk:b.bk,side:b.side};if(!by[d.n]||b.e>by[d.n]._pe)by[d.n]=d});
+MW=m;Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return b._pe-a._pe}).forEach(function(d,i){if(d._pe>=PICK||(i<MINP&&d._pe>0)){d.play=true;d.pick=d._pk}})}
 function get(u){return fetch(u,{cache:"no-store",credentials:"same-origin"}).then(function(r){if(!r.ok)throw 0;return r.json()}).catch(function(){return null})}
 

@@ -65,8 +65,10 @@ ROTATION_MIN = 6.0      # players projected under this are left out of the minut
 STALE_DAYS = 10         # no game in this many days (with team games played) = treat as out
 # Edge math shared with prop-board.html: widen the spread for projection error, then blend the
 # model's chance with the book's no-vig price (MODEL_WEIGHT = share given to the model).
-MODEL_WEIGHT, PROJ_ERROR = 0.2, 0.12   # defaults; calibration.json replaces them once props are graded
-MIN_EDGE = 1.0          # percent; picks at or above this are logged and graded in results.json
+MODEL_WEIGHT, PROJ_ERROR = 0.25, 0.12  # MODEL_WEIGHT: the weight behind the edge the board shows
+# Plays: each player's best prop is a play when its edge with a 40% model weight is 7% or more.
+# On a game day with fewer than MIN_PLAYS of those, the next best props fill in.
+PICK_WEIGHT, PICK_EDGE, MIN_PLAYS = 0.4, 7.0, 3
 MB = list(range(-30, 31, 3))
 TB = list(range(180, 271, 6))
 
@@ -879,10 +881,39 @@ def blended(p, b, weight=MODEL_WEIGHT, pe=PROJ_ERROR):
     return "Under", b["line"], b["un"], 1 - po, eu * 100
 
 
+def side_edge(p, b, side, weight=MODEL_WEIGHT, pe=PROJ_ERROR):
+    """-> (chance, edge %) of one side at one book."""
+    sd = math.sqrt(p["sd"] ** 2 + (pe * p["proj"]) ** 2)
+    io, iu = (-o / (-o + 100) if o < 0 else 100 / (o + 100) for o in (b["ov"], b["un"]))
+    po = weight * (1 - ncdf((b["line"] - p["proj"]) / sd)) + (1 - weight) * io / (io + iu)
+    return (po, (po - io) * 100) if side == "Over" else (1 - po, (1 - po - iu) * 100)
+
+
+def mark_plays(board, now=None):
+    """Flags tonight's plays on the board (same rule as sim.js markPlays): each player's best prop by
+    its edge at PICK_WEIGHT; a play when that edge is PICK_EDGE or more, topped up to MIN_PLAYS."""
+    now = now or datetime.now(timezone.utc)
+    by = {}
+    for p in board:
+        p.pop("play", None)
+        p.pop("pick", None)
+        if not p.get("books") or (p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now):
+            continue
+        best = max((blended(p, b, PICK_WEIGHT) + (b["bk"],) for b in p["books"]), key=lambda x: x[4])
+        if p["n"] not in by or best[4] > by[p["n"]][1][4]:
+            by[p["n"]] = (p, best)
+    n = 0
+    for i, (p, best) in enumerate(sorted(by.values(), key=lambda x: -x[1][4])):
+        if best[4] >= PICK_EDGE or (i < MIN_PLAYS and best[4] > 0):
+            p["play"], p["pick"] = True, {"bk": best[5], "side": best[0]}
+            p["_pick_edge"] = round(best[4], 1)
+            n += 1
+    return n
+
+
 def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ERROR):
-    """Logs the board's best flagged prop for each player (best book, edge >= MIN_EDGE) before tip-off,
-    grades earlier picks from the box scores, and writes picks_log.json and results.json. One pick per
-    player per night, so one big game can't swing several picks at once."""
+    """Logs the board's plays (see mark_plays; one per player) before tip-off, grades earlier picks from
+    the box scores, and writes picks_log.json and results.json."""
     lp, rp = os.path.join(out_dir, "picks_log.json"), os.path.join(out_dir, "results.json")
     picks = []
     if os.path.exists(lp):
@@ -894,9 +925,11 @@ def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ER
     for p in board:
         if p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now:
             continue   # game started: keep whatever was logged before tip-off
-        best = max((blended(p, b, weight, pe) + (b["bk"],) for b in p["books"]), key=lambda x: x[4])
-        if best[4] >= MIN_EDGE and (p["n"] not in best_of or best[4] > best_of[p["n"]][1][4]):
-            best_of[p["n"]] = (p, best)
+        if p.get("play"):
+            b = next(b for b in p["books"] if b["bk"] == p["pick"]["bk"])
+            chance, edge = side_edge(p, b, p["pick"]["side"], weight, pe)
+            side = p["pick"]["side"]
+            best_of[p["n"]] = (p, (side, b["line"], b["ov"] if side == "Over" else b["un"], chance, edge, b["bk"]))
     started = {p["n"] for p in board if p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now}
     for k in [k for k, x in by_id.items() if x["date"] == slate_day.isoformat() and x.get("result") is None
               and x["n"] not in started and (x["n"] not in best_of or best_of[x["n"]][0]["m"] != x["m"])]:
@@ -906,7 +939,8 @@ def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ER
         pid = f"{slate_day.isoformat()}-{p['n']}-{p['m']}"
         by_id[pid] = {"id": pid, "date": slate_day.isoformat(), "n": p["n"], "t": p["t"], "o": p["o"], "m": p["m"],
                       "proj": p["proj"], "side": side, "line": line, "odds": odds, "bk": bk, "p": round(chance, 3),
-                      "e": round(edge, 1), "posted": now.isoformat(), "result": None, "actual": None}
+                      "e": round(edge, 1), "pick_e": p.get("_pick_edge"), "posted": now.isoformat(),
+                      "result": None, "actual": None}
     box = {}
     for g in logs:
         box[(norm(g["name"]), g["date"])] = g
@@ -933,7 +967,7 @@ def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ER
                 "hit_rate": round(w / (w + l_), 3) if w + l_ else None, "units": round(units, 2)}
     graded = [x for x in picks if x["result"] in ("win", "loss", "push")]
     by = lambda k: {v: summ([x for x in graded if x[k] == v]) for v in sorted({x[k] for x in graded})}
-    res = {"generated": now.isoformat(), "min_edge": MIN_EDGE, "overall": summ(graded),
+    res = {"generated": now.isoformat(), "pick_edge": PICK_EDGE, "overall": summ(graded),
            "by_market": by("m"), "by_date": by("date"),
            "pending": sum(1 for x in picks if x["result"] is None)}
     with open(lp, "w") as f:   # one pick per line keeps the git history small
@@ -1061,7 +1095,9 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
             + (f"; score market {sc['market_only']}, old {sc['old_settings']}, new {sc['new_settings']}" if sc else ""))
     except Exception as ex:
         log(f"Calibration skipped, using defaults: {ex}")
-    calibrate.apply(board, cal)
+    # The fitted corrections are logged in calibration.json but not applied to the board yet.
+    n_plays = mark_plays(board)
+    log(f"  {n_plays} plays flagged")
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -1192,7 +1228,7 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
             log(f"Could not update the first basket tracker: {ex}")
 
     try:
-        res = track_picks(board, slate_day, all_cur, args.out, cal["weight"], cal["proj_error"])
+        res = track_picks(board, slate_day, all_cur, args.out)
         o = res["overall"]
         log(f"Results tracker: {o['wins']}-{o['losses']}-{o['pushes']} graded, {res['pending']} pending")
     except Exception as ex:
@@ -1230,8 +1266,9 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     log(f"  injury report: {sum(len(v) for v in inj_teams.values())} players on tonight's teams")
 
     files = {
-        "board.json": {"generated": now, "slate": slate_day.isoformat(), "model_weight": cal["weight"],
-                       "proj_error": cal["proj_error"], "props": board},
+        "board.json": {"generated": now, "slate": slate_day.isoformat(), "model_weight": MODEL_WEIGHT,
+                       "proj_error": PROJ_ERROR, "pick_weight": PICK_WEIGHT, "pick_edge": PICK_EDGE,
+                       "min_plays": MIN_PLAYS, "props": [{k: v for k, v in p.items() if k != "_pick_edge"} for p in board]},
         "probable.json": {"generated": now, "teams": teams, "players": players},
         "games.json": {"generated": now, "games": games, "perfect": perfect[:8]},
         "lines.json": {"generated": now, "games": lines_out},
