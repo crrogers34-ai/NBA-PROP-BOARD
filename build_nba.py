@@ -67,8 +67,9 @@ STALE_DAYS = 10         # no game in this many days (with team games played) = t
 # model's chance with the book's no-vig price (MODEL_WEIGHT = share given to the model).
 MODEL_WEIGHT, PROJ_ERROR = 0.25, 0.12  # MODEL_WEIGHT: the weight behind the edge the board shows
 # Plays: each player's best prop is a play when its edge with a 40% model weight is 7% or more.
-# On a game day with fewer than MIN_PLAYS of those, the next best props fill in.
-PICK_WEIGHT, PICK_EDGE, MIN_PLAYS = 0.4, 7.0, 3
+# On a game day with fewer than MIN_PLAYS of those, the next best props fill in (other players first,
+# then a player's next best prop), as long as their edge is above zero.
+PICK_WEIGHT, PICK_EDGE, MIN_PLAYS = 0.4, 7.0, 25
 MB = list(range(-30, 31, 3))
 TB = list(range(180, 271, 6))
 
@@ -893,18 +894,23 @@ def mark_plays(board, now=None):
     """Flags tonight's plays on the board (same rule as sim.js markPlays): each player's best prop by
     its edge at PICK_WEIGHT; a play when that edge is PICK_EDGE or more, topped up to MIN_PLAYS."""
     now = now or datetime.now(timezone.utc)
-    by = {}
+    cand = []
     for p in board:
         p.pop("play", None)
         p.pop("pick", None)
         if not p.get("books") or (p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now):
             continue
         best = max((blended(p, b, PICK_WEIGHT) + (b["bk"],) for b in p["books"]), key=lambda x: x[4])
-        if p["n"] not in by or best[4] > by[p["n"]][1][4]:
-            by[p["n"]] = (p, best)
+        if best[4] > 0:
+            cand.append((p, best))
+    cand.sort(key=lambda x: -x[1][4])
+    seen, first, rest = set(), [], []
+    for c in cand:   # each player's best prop first, then their others
+        (rest if c[0]["n"] in seen else first).append(c)
+        seen.add(c[0]["n"])
     n = 0
-    for i, (p, best) in enumerate(sorted(by.values(), key=lambda x: -x[1][4])):
-        if best[4] >= PICK_EDGE or (i < MIN_PLAYS and best[4] > 0):
+    for p, best in first + rest:
+        if (best[4] >= PICK_EDGE and (p, best) in first) or n < MIN_PLAYS:
             p["play"], p["pick"] = True, {"bk": best[5], "side": best[0]}
             p["_pick_edge"] = round(best[4], 1)
             n += 1
@@ -929,11 +935,11 @@ def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ER
             b = next(b for b in p["books"] if b["bk"] == p["pick"]["bk"])
             chance, edge = side_edge(p, b, p["pick"]["side"], weight, pe)
             side = p["pick"]["side"]
-            best_of[p["n"]] = (p, (side, b["line"], b["ov"] if side == "Over" else b["un"], chance, edge, b["bk"]))
+            best_of[(p["n"], p["m"])] = (p, (side, b["line"], b["ov"] if side == "Over" else b["un"], chance, edge, b["bk"]))
     started = {p["n"] for p in board if p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now}
     for k in [k for k, x in by_id.items() if x["date"] == slate_day.isoformat() and x.get("result") is None
-              and x["n"] not in started and (x["n"] not in best_of or best_of[x["n"]][0]["m"] != x["m"])]:
-        del by_id[k]   # no longer this player's best flagged prop before tip-off
+              and x["n"] not in started and (x["n"], x["m"]) not in best_of]:
+        del by_id[k]   # no longer a play before tip-off
     for p, best in best_of.values():
         side, line, odds, chance, edge, bk = best
         pid = f"{slate_day.isoformat()}-{p['n']}-{p['m']}"

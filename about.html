@@ -46,7 +46,7 @@
 <h2>How edge and fair value are calculated</h2>
 <ul class="steps">
 <li><b>Fair value</b> is the price with no sportsbook margin, converted from the model's chance. A 60% chance is fair at about -150.</li>
-<li><b>Plays.</b> We blend our projection with the sportsbook's price after removing its margin. Each player's best prop becomes a play when that blend, with our model given a 40% say, shows an edge of 7% or more. On a slate with fewer than three of those, the next best props fill in, so every game day has plays.</li>
+<li><b>Plays.</b> We blend our projection with the sportsbook's price after removing its margin. Each player's best prop becomes a play when that blend, with our model given a 40% say, shows an edge of 7% or more. On a slate with fewer than 25 of those, the next best props fill in (other players first, then a player's next best prop), so every game day has at least 25 plays when the slate is big enough.</li>
 <li><b>The edge we show</b> uses a more cautious blend that gives our model a 25% say. The plays are the same, but the number is smaller, closer to what the results so far support. Betting lines are sharp, so treat every edge as an estimate.</li>
 <li><b>Edge</b> is that blended chance minus the chance implied by a book's price. A positive edge means the book pays more than we think the bet is worth.</li>
 <li><b>Line shopping and parlays</b> only compare books that post the same line. Parlay prices multiply the legs together, but sportsbooks price same-game parlays differently because the legs are related, so the final price at the book is often lower.</li>
