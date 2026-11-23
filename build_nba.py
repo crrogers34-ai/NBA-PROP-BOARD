@@ -890,9 +890,10 @@ def side_edge(p, b, side, weight=MODEL_WEIGHT, pe=PROJ_ERROR):
     return (po, (po - io) * 100) if side == "Over" else (1 - po, (1 - po - iu) * 100)
 
 
-def mark_plays(board, now=None):
+def mark_plays(board, now=None, locked=0):
     """Flags tonight's plays on the board (same rule as sim.js markPlays): each player's best prop by
-    its edge at PICK_WEIGHT; a play when that edge is PICK_EDGE or more, topped up to MIN_PLAYS."""
+    its edge at PICK_WEIGHT; a play when that edge is PICK_EDGE or more, topped up to MIN_PLAYS.
+    `locked` = plays already logged tonight for games that have started; they count toward MIN_PLAYS."""
     now = now or datetime.now(timezone.utc)
     cand = []
     for p in board:
@@ -910,7 +911,7 @@ def mark_plays(board, now=None):
         seen.add(c[0]["n"])
     n = 0
     for p, best in first + rest:
-        if (best[4] >= PICK_EDGE and (p, best) in first) or n < MIN_PLAYS:
+        if (best[4] >= PICK_EDGE and (p, best) in first) or n + locked < MIN_PLAYS:
             p["play"], p["pick"] = True, {"bk": best[5], "side": best[0]}
             p["_pick_edge"] = round(best[4], 1)
             n += 1
@@ -936,16 +937,20 @@ def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ER
             chance, edge = side_edge(p, b, p["pick"]["side"], weight, pe)
             side = p["pick"]["side"]
             best_of[(p["n"], p["m"])] = (p, (side, b["line"], b["ov"] if side == "Over" else b["un"], chance, edge, b["bk"]))
-    started = {p["n"] for p in board if p.get("kick") and datetime.fromisoformat(p["kick"].replace("Z", "+00:00")) <= now}
+    kick_of = {p["n"]: p.get("kick") for p in board}
+
+    def not_started(x):   # only a pick whose game is known not to have started can be dropped
+        k = x.get("kick") or kick_of.get(x["n"])
+        return bool(k) and datetime.fromisoformat(k.replace("Z", "+00:00")) > now
     for k in [k for k, x in by_id.items() if x["date"] == slate_day.isoformat() and x.get("result") is None
-              and x["n"] not in started and (x["n"], x["m"]) not in best_of]:
+              and (x["n"], x["m"]) not in best_of and not_started(x)]:
         del by_id[k]   # no longer a play before tip-off
     for p, best in best_of.values():
         side, line, odds, chance, edge, bk = best
         pid = f"{slate_day.isoformat()}-{p['n']}-{p['m']}"
         by_id[pid] = {"id": pid, "date": slate_day.isoformat(), "n": p["n"], "t": p["t"], "o": p["o"], "m": p["m"],
                       "proj": p["proj"], "side": side, "line": line, "odds": odds, "bk": bk, "p": round(chance, 3),
-                      "e": round(edge, 1), "pick_e": p.get("_pick_edge"), "posted": now.isoformat(),
+                      "e": round(edge, 1), "pick_e": p.get("_pick_edge"), "kick": p.get("kick"), "posted": now.isoformat(),
                       "result": None, "actual": None}
     box = {}
     for g in logs:
@@ -1102,8 +1107,19 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     except Exception as ex:
         log(f"Calibration skipped, using defaults: {ex}")
     # The fitted corrections are logged in calibration.json but not applied to the board yet.
-    n_plays = mark_plays(board)
-    log(f"  {n_plays} plays flagged")
+    locked = 0
+    try:
+        with open(os.path.join(args.out, "picks_log.json")) as f:
+            kick_of = {p["n"]: p.get("kick") for p in board}
+            _now = datetime.now(timezone.utc)
+            for x in json.load(f).get("picks", []):
+                k = x.get("kick") or kick_of.get(x["n"])
+                if x["date"] == slate_day.isoformat() and (not k or datetime.fromisoformat(k.replace("Z", "+00:00")) <= _now):
+                    locked += 1
+    except (OSError, ValueError, KeyError):
+        pass
+    n_plays = mark_plays(board, locked=locked)
+    log(f"  {n_plays} plays flagged, {locked} already locked for games that started")
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
