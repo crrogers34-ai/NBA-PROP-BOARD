@@ -1,13 +1,13 @@
 {
- "generated": "2026-11-23T03:59:39.738938+00:00",
+ "generated": "2026-11-23T12:52:15.298112+00:00",
  "pick_edge": 7.0,
  "overall": {
-  "picks": 453,
-  "wins": 227,
+  "picks": 456,
+  "wins": 230,
   "losses": 226,
   "pushes": 0,
-  "hit_rate": 0.501,
-  "units": -20.27
+  "hit_rate": 0.504,
+  "units": -17.42
  },
  "by_market": {
   "3PM": {
@@ -19,12 +19,12 @@
    "units": -13.72
   },
   "Assists": {
-   "picks": 74,
-   "wins": 36,
+   "picks": 75,
+   "wins": 37,
    "losses": 38,
    "pushes": 0,
-   "hit_rate": 0.486,
-   "units": -6.69
+   "hit_rate": 0.493,
+   "units": -5.76
   },
   "PRA": {
    "picks": 90,
@@ -35,12 +35,12 @@
    "units": 0.0
   },
   "Points": {
-   "picks": 105,
-   "wins": 61,
+   "picks": 107,
+   "wins": 63,
    "losses": 44,
    "pushes": 0,
-   "hit_rate": 0.581,
-   "units": 11.5
+   "hit_rate": 0.589,
+   "units": 13.42
   },
   "Rebounds": {
    "picks": 125,
@@ -83,7 +83,15 @@
    "pushes": 0,
    "hit_rate": 0.459,
    "units": -15.67
+  },
+  "2026-11-22": {
+   "picks": 3,
+   "wins": 3,
+   "losses": 0,
+   "pushes": 0,
+   "hit_rate": 1.0,
+   "units": 2.85
   }
  },
- "pending": 9
+ "pending": 25
 }
