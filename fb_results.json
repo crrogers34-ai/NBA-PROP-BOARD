@@ -1,7 +1,7 @@
 {
- "generated": "2026-11-24T12:27:56+00:00",
+ "generated": "2026-11-24T12:46:25+00:00",
  "games": 47,
- "pending": 0,
+ "pending": 3,
  "avg_chance_actual": 0.1035,
  "avg_book_chance_actual": 0.1029,
  "book_games": 45,
@@ -48,7 +48,7 @@
    "how": "Three",
    "p": 0.0001,
    "rank": 12,
-   "p_book": 0.0
+   "p_book": 0
   },
   {
    "date": "2026-11-23",
@@ -86,7 +86,7 @@
    "n": "Shai Gilgeous-Alexander",
    "t": "OKC",
    "how": "Jump shot",
-   "p": 0.0,
+   "p": 0,
    "rank": null,
    "p_book": 0.1448
   },
@@ -98,7 +98,7 @@
    "how": "Three",
    "p": 0.0649,
    "rank": 8,
-   "p_book": 0.0
+   "p_book": 0
   },
   {
    "date": "2026-11-23",
