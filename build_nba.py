@@ -551,22 +551,20 @@ def fit_minutes(R):
 
 
 def mark_starters(P, cur_logs):
-    """p["start"] = started his team's most recent game (ESPN marks starters). Starters who are out
-    are replaced by the highest-minute healthy players; without starter data, the top five by minutes."""
-    last = {}
+    """p["start"] = started the most recent game HE played for this team (ESPN marks starters), so a
+    starter who sat out the team's last game is still a starter when he's back. If more than five
+    qualify, the five with the most projected minutes start; starters who are out (not in P) are
+    replaced by the highest-minute healthy players; without starter data, the top five by minutes."""
+    own = {}   # (pid, team) -> (date, started)
     for g in cur_logs:
-        if g["date"] > last.get(g["team"], ("", ""))[0]:
-            last[g["team"]] = (g["date"], g["gid"])
-    started = defaultdict(set)
-    known = set()
-    for g in cur_logs:
-        if last.get(g["team"], ("", ""))[1] == g["gid"] and g.get("START") is not None:
-            known.add(g["team"])
-            if g["START"]:
-                started[g["team"]].add(g["pid"])
+        if g.get("START") is None or not g.get("MIN"):
+            continue
+        k = (g["pid"], g["team"])
+        if g["date"] > own.get(k, ("", None))[0]:
+            own[k] = (g["date"], bool(g["START"]))
     for t in {p["t"] for p in P}:
         R = sorted([p for p in P if p["t"] == t], key=lambda p: -p["min"])
-        S = [p for p in R if p["pid"] in started[t]] if t in known else []
+        S = [p for p in R if own.get((p["pid"], t), ("", False))[1]][:5]
         for p in R:
             if len(S) >= 5:
                 break
