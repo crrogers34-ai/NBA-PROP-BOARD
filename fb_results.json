@@ -1,35 +1,65 @@
 {
- "generated": "2026-11-25T03:43:57+00:00",
- "games": 47,
- "pending": 3,
- "avg_chance_actual": 0.1035,
- "avg_book_chance_actual": 0.1029,
- "book_games": 45,
- "top3": 0.404,
- "team_first_right": 0.617,
- "tip_winner_scored_first": 0.574,
+ "generated": "2026-11-25T13:08:51+00:00",
+ "games": 50,
+ "pending": 0,
+ "avg_chance_actual": 0.1007,
+ "avg_book_chance_actual": 0.1022,
+ "book_games": 47,
+ "top3": 0.38,
+ "team_first_right": 0.62,
+ "tip_winner_scored_first": 0.56,
  "starter_share": 1.0,
  "how_actual": {
-  "Three": 0.404,
-  "Jump shot": 0.234,
-  "Dunk": 0.128,
-  "Layup": 0.128,
-  "Floater": 0.106
+  "Three": 0.4,
+  "Jump shot": 0.26,
+  "Dunk": 0.12,
+  "Layup": 0.12,
+  "Floater": 0.1
  },
  "how_sim": {
-  "Three": 0.336,
-  "Layup": 0.236,
+  "Three": 0.335,
+  "Layup": 0.237,
   "Jump shot": 0.22,
-  "Dunk": 0.076,
+  "Dunk": 0.077,
   "Floater": 0.075,
   "Hook shot": 0.057
  },
  "bets": {
-  "count": 143,
+  "count": 152,
   "wins": 19,
-  "units": 38.58
+  "units": 29.58
  },
  "recent": [
+  {
+   "date": "2026-11-24",
+   "game": "BOS at WAS",
+   "n": "AJ Dybantsa",
+   "t": "WAS",
+   "how": "Jump shot",
+   "p": 0.0848,
+   "rank": 8,
+   "p_book": 0.0852
+  },
+  {
+   "date": "2026-11-24",
+   "game": "DAL at DEN",
+   "n": "Cameron Johnson",
+   "t": "DEN",
+   "how": "Three",
+   "p": 0.0868,
+   "rank": 6,
+   "p_book": 0.0872
+  },
+  {
+   "date": "2026-11-24",
+   "game": "DET at ORL",
+   "n": "Isaiah Joe",
+   "t": "DET",
+   "how": "Jump shot",
+   "p": 0.0003,
+   "rank": 11,
+   "p_book": 0.0
+  },
   {
    "date": "2026-11-23",
    "game": "BKN at MIN",
@@ -149,54 +179,24 @@
    "p": 0.1338,
    "rank": 3,
    "p_book": 0.1275
-  },
-  {
-   "date": "2026-11-22",
-   "game": "DEN at CHI",
-   "n": "Buddy Hield",
-   "t": "CHI",
-   "how": "Three",
-   "p": 0.0001,
-   "rank": 16,
-   "p_book": 0.0874
-  },
-  {
-   "date": "2026-11-22",
-   "game": "DET at ATL",
-   "n": "John Collins",
-   "t": "DET",
-   "how": "Jump shot",
-   "p": 0.0939,
-   "rank": 6,
-   "p_book": 0.1093
-  },
-  {
-   "date": "2026-11-22",
-   "game": "IND at NYK",
-   "n": "Ivica Zubac",
-   "t": "IND",
-   "how": "Dunk",
-   "p": 0.0839,
-   "rank": 7,
-   "p_book": 0.1066
   }
  ],
  "season": {
-  "games": 258,
+  "games": 261,
   "how": {
    "Three": 0.333,
-   "Jump shot": 0.267,
-   "Layup": 0.198,
-   "Dunk": 0.124,
-   "Floater": 0.078
+   "Jump shot": 0.272,
+   "Layup": 0.195,
+   "Dunk": 0.123,
+   "Floater": 0.077
   },
   "position": {
-   "Guard": 0.461,
-   "Forward": 0.395,
-   "Center": 0.143
+   "Guard": 0.46,
+   "Forward": 0.398,
+   "Center": 0.142
   },
   "starter_share": 1.0,
-  "tip_winner_scored_first": 0.597,
+  "tip_winner_scored_first": 0.594,
   "first_quarter": 1.0
  }
 }
