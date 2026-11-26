@@ -987,6 +987,37 @@ def track_picks(board, slate_day, logs, out_dir, weight=MODEL_WEIGHT, pe=PROJ_ER
 
 
 # ---------------------------------------------------------------- main build
+def grade_only(args, season, slate_day):
+    """Off days (no games on the slate): grade the earlier plays, props and first baskets anyway,
+    so results don't wait for the next game day. The board itself is left as it is."""
+    source = (getattr(args, "source", None) or os.getenv("NBA_SOURCE") or "auto").lower()
+    try:
+        cur_rows, _prev, _roster, used = load_season_data(season, slate_day, args.cache, source,
+                                                          None, None)
+    except Exception as ex:
+        log(f"Could not load box scores for grading: {ex}")
+        return
+    all_cur = clean_logs(cur_rows)
+    try:
+        n, _rows = calibrate.grade_props(args.out, all_cur, slate_day, COL)
+        log(f"Props graded: {n}")
+    except Exception as ex:
+        log(f"Could not grade props: {ex}")
+    if used == "espn":
+        try:
+            fr = grade_first_baskets(args.out, espn_source.first_baskets(season, args.cache), slate_day)
+            if fr:
+                log(f"First basket tracker: {fr['games']} games graded, {fr['pending']} waiting")
+        except Exception as ex:
+            log(f"Could not update the first basket tracker: {ex}")
+    try:
+        res = track_picks([], slate_day, all_cur, args.out)
+        o = res["overall"]
+        log(f"Results tracker: {o['wins']}-{o['losses']}-{o['pushes']} graded, {res['pending']} pending")
+    except Exception as ex:
+        log(f"Could not update the results tracker: {ex}")
+
+
 def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr_fn=None):
     key = os.getenv("ODDS_API_KEY")
     if not key:
@@ -1003,7 +1034,8 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
     slate = [e for e in events
              if datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")).astimezone(ET).date() == slate_day]
     if not slate:
-        log(f"No NBA games found on {slate_day}, so the data files were left as they are.")
+        log(f"No NBA games found on {slate_day}, so the board was left as it is.")
+        grade_only(args, season, slate_day)   # still grade the last slate's plays, props and first baskets
         sys.exit(0)
     log(f"  {len(slate)} games")
 
