@@ -2,49 +2,79 @@
    PBP.mount(element, {away, home, when, spread, total, targetAway, targetHome, players:[{n,t,min,proj:{...}}], sample})
    Plays one game possession by possession from the player projections, with shooting tuned so the
    average score matches the betting market. */
+/* Also the engine behind the First Basket Simulator (first-basket.html, and fb_predict.js nightly):
+   Engine(cfg).play(seed, false, {stopFirst: true, tipHome}) plays a game only until its first made
+   field goal and returns who scored it and how. */
 (function(){
 var NICK={ATL:"Hawks",BOS:"Celtics",BKN:"Nets",CHA:"Hornets",CHI:"Bulls",CLE:"Cavaliers",DAL:"Mavericks",DEN:"Nuggets",DET:"Pistons",GSW:"Warriors",HOU:"Rockets",IND:"Pacers",LAC:"Clippers",LAL:"Lakers",MEM:"Grizzlies",MIA:"Heat",MIL:"Bucks",MIN:"Timberwolves",NOP:"Pelicans",NYK:"Knicks",OKC:"Thunder",ORL:"Magic",PHI:"76ers",PHX:"Suns",POR:"Trail Blazers",SAC:"Kings",SAS:"Spurs",TOR:"Raptors",UTA:"Jazz",WAS:"Wizards"};
+// Quarter and overtime lengths, in seconds.
 var Q_LEN=720,OT_LEN=300;
+// Two-point shot types: [play-by-play description, shortest distance, longest distance] in feet.
 var TWO=[["driving layup",0,4],["layup",0,3],["dunk",0,2],["floating jump shot",6,12],["pullup jump shot",12,19],["turnaround hook shot",4,9],["step back jump shot",14,20],["cutting layup",0,2],["jump shot",15,21]];
 /* weights over TWO for bigs and for guards; everyone else picks evenly */
 var BIG=[1,2,3,.4,.4,2.2,.2,2,.4],GUARD=[2.2,1,.5,1.6,2,.2,1.6,.5,1.4];
+// Groups each shot description into the method shown on the First Basket page.
 var CAT={"driving layup":"Layup","layup":"Layup","cutting layup":"Layup","dunk":"Dunk","floating jump shot":"Floater","pullup jump shot":"Jump shot","step back jump shot":"Jump shot","jump shot":"Jump shot","turnaround hook shot":"Hook shot"};
+// Three-point shot types, same format as TWO.
 var THREE=[["three point jumper",24,27],["pullup three",25,28],["step back three",25,29],["corner three",22,23]];
 function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function nick(t){return NICK[t]||t}
+// Seeded random numbers (mulberry32): the same seed always plays the same game, so a run can be repeated.
 function rng(seed){var a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+// Weighted random choice: one item from list, with chance proportional to w(item).
 function pick(R,list,w){var s=0,i;for(i=0;i<list.length;i++)s+=w(list[i]);var x=R()*s;for(i=0;i<list.length;i++){x-=w(list[i]);if(x<=0)return list[i]}return list[list.length-1]}
+// Random whole number from a to b, inclusive.
 function between(R,a,b){return a+Math.floor(R()*(b-a+1))}
 function mmss(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+("0"+s%60).slice(-2)}
 function qName(p){return p<=4?["1st","2nd","3rd","4th"][p-1]+" quarter":(p===5?"overtime":(p-4)+"OT")}
 
+/* Builds one team from the projections: each player's minutes and per-minute rates, a "Bench"
+   stand-in for minutes nobody projected covers, the five starters, and team-wide rates. */
 function team(code,players){
   var P=players.filter(function(p){return p.t===code&&p.proj&&(p.min||0)>=1}).map(function(p){var j=p.proj;
     return{n:p.n,start:!!p.start,min:Math.min(p.min,40),pts:j.Points||0,reb:j.Rebounds||0,ast:j.Assists||0,tpm:j["3PM"]||0,stl:j.Steals||0,blk:j.Blocks||0,tov:j.Turnovers||0}})
     .sort(function(a,b){return b.min-a.min});
+  // Scale minutes so the team plays exactly 240 (five players for 48 minutes).
   var used=P.reduce(function(a,p){return a+p.min},0);
   if(used>240){P.forEach(function(p){p.min*=240/used});used=240}
   var left=240-used;
+  // Leftover minutes go to a generic "Bench" player with low per-minute numbers.
   if(left>2)P.push({n:"Bench",min:left,pts:.36*left,reb:.17*left,ast:.08*left,tpm:.04*left,stl:.03*left,blk:.02*left,tov:.05*left,bench:true});
+  // Per-minute rates. "two" weighs who takes two-point shots (points left after threes); "three" who takes threes.
+  // kw = shot-type weights: BIG for strong rebounders who rarely shoot threes, GUARD for passers and
+  // shooters, null (every type equally likely) for everyone else.
   P.forEach(function(p){var m=Math.max(p.min,1);
     p.r={two:Math.max(.05,(p.pts-3*p.tpm)/m),three:Math.max(.005,p.tpm/m),reb:p.reb/m,ast:p.ast/m,stl:p.stl/m,blk:p.blk/m,tov:p.tov/m};
     p.kw=p.r.reb>.24&&p.r.three<.045?BIG:(p.r.ast>.15||p.r.three>.07?GUARD:null)});
+  // Starters: players flagged start=true by build_nba.py (mark_starters); if fewer than five are flagged,
+  // the five with the most minutes. They take the floor first, so they decide most first baskets.
   var st=P.filter(function(p){return p.start&&!p.bench});
   P.starters=(st.length>=5?st:P.filter(function(p){return!p.bench})).slice(0,5);
+  // pTO = chance a possession ends in a turnover (10-17%). f3 = share of shots that are threes (32-50%),
+  // from projected threes made at a 36% rate. k = shooting factor, tuned by calibrate().
   var tov=P.reduce(function(a,p){return a+p.tov},0),tpm=P.reduce(function(a,p){return a+p.tpm},0);
   return{code:code,P:P,pTO:Math.min(.17,Math.max(.10,tov/100)),f3:Math.min(.5,Math.max(.32,(tpm/.36)/86)),k:1};
 }
 
+/* One matchup. play() simulates a game; calibrate() tunes shooting so each team's average score
+   matches its market-implied total (cfg.targetAway / cfg.targetHome). */
 function Engine(cfg){
   var AWAY=cfg.away,HOME=cfg.home,T={};T[AWAY]=team(AWAY,cfg.players);T[HOME]=team(HOME,cfg.players);
   var TARGET={};TARGET[AWAY]=cfg.targetAway;TARGET[HOME]=cfg.targetHome;
+  // play(seed, log, opt): log=true records the play-by-play. opt.stopFirst ends the game at the first
+  // made field goal. opt.tipHome = chance the home team wins the opening tip (default 0.5).
   function play(seed,log,opt){opt=opt||{};
     var R=rng(seed),S={},ev=[],flow=[],line={},score={};line[AWAY]=[];line[HOME]=[];score[AWAY]=0;score[HOME]=0;
+    // S = every player's box score for this run.
     [AWAY,HOME].forEach(function(c){T[c].P.forEach(function(p){S[c+"|"+p.n]={n:p.n,min:0,pts:0,reb:0,ast:0,stl:0,blk:0,tov:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,bench:p.bench}})});
+    // The tip decides the first possession (off = team with the ball). first = the first basket, once scored.
     var tipHome=opt.tipHome==null?.5:opt.tipHome,on={},period=1,clock=Q_LEN,elapsed=0,nextSub=0,off=R()<tipHome?HOME:AWAY,firstOff=off,first=null;
     function st(c,p){return S[c+"|"+p.n]}
     function addPts(c,n){score[c]+=n;line[c][period-1]=(line[c][period-1]||0)+n}
     function say(c,text,scoring){if(log)ev.push({p:period,ck:clock,t:c,x:text,sc:!!scoring,a:score[AWAY],h:score[HOME]})}
+    // rotate(): picks the five on the floor for each team. Starters open the 1st and 3rd quarters and
+    // close tight games; benches finish blowouts; otherwise the players furthest behind their projected
+    // minutes play. Lineups change every 2.5 to 5 minutes of game time.
     function rotate(force){var margin=Math.abs(score[HOME]-score[AWAY]);
       [AWAY,HOME].forEach(function(c){var P=T[c].P,choose,real=P.filter(function(p){return!p.bench});
         if(force&&(period===1||period===3)&&real.length>=5)choose=P.starters;
@@ -53,59 +83,85 @@ function Engine(cfg){
         else{var horizon=Math.min(elapsed+240,2880);choose=P.map(function(p){return{p:p,need:p.min*60*horizon/2880-st(c,p).min*60+R()*90}}).sort(function(a,b){return b.need-a.need}).slice(0,5).map(function(x){return x.p})}
         on[c]=choose});
       nextSub=elapsed+between(R,150,300)}
+    // Opening lineups are the starters.
     rotate(true);
     if(log)ev.push({p:1,ck:Q_LEN,t:null,x:"Start of the 1st quarter. "+nick(firstOff)+" win the tip.",a:0,h:0});
+    // Main loop: one possession per pass, with 700 as a safety stop.
     var guard=0;
     while(guard++<700){
+      // End of a period: stop if regulation or overtime ends untied, otherwise start the next period.
+      // Possession at the start of each quarter alternates, as in the NBA.
       if(clock<=0){
         if(log)ev.push({p:period,ck:0,t:null,x:"End of "+qName(period)+". "+AWAY+" "+score[AWAY]+", "+HOME+" "+score[HOME],a:score[AWAY],h:score[HOME]});
         if(period>=4&&score[AWAY]!==score[HOME])break;
         period++;clock=period<=4?Q_LEN:OT_LEN;off=period%2===0?(firstOff===HOME?AWAY:HOME):firstOff;
         rotate(true);if(log)ev.push({p:period,ck:clock,t:null,x:"Start of "+qName(period),a:score[AWAY],h:score[HOME]});continue}
       if(elapsed>=nextSub&&period<=4&&clock>45)rotate(false);
+      // One possession: def = the defense, O and D = the five on the floor for each side.
       var def=off===HOME?AWAY:HOME,O=on[off],D=on[def],tm=T[off],second=false,evStart=ev.length,clock0=clock;
+      // Possessions run 6-22 seconds; near the end of a quarter, teams usually hold for the last shot.
       var tPoss=Math.min(clock,between(R,6,22));
       if(clock<=24&&clock>2&&R()<.7)tPoss=Math.max(1,clock-between(R,0,2));
+      // Each pass is a turnover, a shooting foul or a shot; an offensive rebound continues the possession.
       for(;;){
         var r=R();
+        // Turnover, with a steal 55% of the time.
         if(!second&&r<tm.pTO){
           var to=pick(R,O,function(p){return p.r.tov+.01});st(off,to).tov++;
           if(R()<.55){var sp=pick(R,D,function(p){return p.r.stl+.005});st(def,sp).stl++;say(off,to.n+" bad pass ("+sp.n+" steals)")}
           else say(off,to.n+" "+["lost ball turnover","traveling","offensive foul","out of bounds"][between(R,0,3)]);
           break}
+        // Shooting foul (about 10.5% of possessions): two free throws at 78%. Free throws never count as
+        // the first basket.
         if(!second&&r<tm.pTO+.105){
           var fs=pick(R,O,function(p){return p.r.two+p.r.three*1.5}),fl=pick(R,D,function(){return 1}),made=0;
           for(var f=0;f<2;f++){st(off,fs).fta++;if(R()<.78){made++;st(off,fs).ftm++;st(off,fs).pts++;addPts(off,1)}}
           say(off,fs.n+" makes "+made+" of 2 free throws (foul on "+fl.n+")",made>0);break}
+        // A shot: three or two, by the team's three-point share; the shooter is weighted by his per-minute
+        // rate for that kind of shot.
         var isThree=R()<tm.f3,sh=pick(R,O,function(p){return isThree?p.r.three:p.r.two}),ss=st(off,sh);
+        // Make chance: 35.5% on threes and 53.5% on twos, times the shooting factor k, 6% better on
+        // second-chance shots, and 0.6% better per point the shooting team trails (up to 20 points).
         var lead=Math.max(-20,Math.min(20,score[def]-score[off]));
         var q=(isThree?.355:.535)*tm.k*(second?1.06:1)*(1+.006*lead),make=R()<q;
+        // Shot type and distance for the play text; bigs and guards favor different shots.
         var kind=isThree?THREE[between(R,0,THREE.length-1)]:(sh.kw?pick(R,TWO,function(k){return sh.kw[TWO.indexOf(k)]}):TWO[between(R,0,TWO.length-1)]),ft=between(R,kind[1],kind[2]);
         var desc=(ft>=3?ft+"-foot ":"")+kind[0];
         ss.fga++;if(isThree)ss.tpa++;
+        // Made shot: points, a possible assist (82% of threes, 55% of twos) and a 3.5% chance of an and-one.
         if(make){var pts=isThree?3:2;ss.fgm++;if(isThree)ss.tpm++;ss.pts+=pts;addPts(off,pts);
           var helper=null;if(R()<(isThree?.82:.55)){helper=pick(R,O.filter(function(p){return p!==sh}),function(p){return p.r.ast+.003});st(off,helper).ast++}
           var txt=sh.n+" makes "+desc+(helper?" ("+helper.n+" assists)":"");
           if(!isThree&&R()<.035){ss.fta++;if(R()<.78){ss.ftm++;ss.pts++;addPts(off,1);txt+=", and one"}else txt+=", misses the and-one"}
           say(off,txt,true);
+          // First Basket Simulator: record who scored, the method and the assist; the run ends below.
           if(opt.stopFirst){first={n:sh.n,t:off,bench:!!sh.bench,cat:isThree?"Three":(CAT[kind[0]]||"Jump shot"),desc:desc,assist:helper?helper.n:null,and1:/and one$/.test(txt)}}
           break}
+        // Miss: 8.5% of missed twos are blocked; 23.5% of misses are offensive rebounds that keep the
+        // possession going.
         if(!isThree&&R()<.085){var bl=pick(R,D,function(p){return p.r.blk+.003});st(def,bl).blk++;say(off,bl.n+" blocks "+sh.n+"'s "+desc)}
         else say(off,sh.n+" misses "+desc);
         if(R()<.235){var orb=pick(R,O,function(p){return p.r.reb+.01});st(off,orb).reb++;say(off,orb.n+" offensive rebound");second=true;tPoss+=between(R,2,7);continue}
         var drb=pick(R,D,function(p){return p.r.reb+.01});st(def,drb).reb++;say(def,drb.n+" defensive rebound");break}
+      // Run the clock and credit minutes to everyone on the floor; each play's clock time is spread
+      // evenly over the possession.
       tPoss=Math.min(tPoss,clock);clock-=tPoss;elapsed+=tPoss;
       O.forEach(function(p){st(off,p).min+=tPoss/60});D.forEach(function(p){st(def,p).min+=tPoss/60});
       if(log){var nE=ev.length-evStart;for(var j=0;j<nE;j++)ev[evStart+j].ck=Math.round(clock0-tPoss*(j+1)/nE)}
       flow.push([elapsed,score[HOME]-score[AWAY]]);
+      // stopFirst: the first basket is in, so end the run.
       if(first){first.ck=clock;first.p=period;break}
       off=def}
     return{seed:seed,score:score,line:line,ev:ev,flow:flow,S:S,periods:period,first:first,firstOff:firstOff}}
+  // calibrate(): plays 300 quick games, compares each team's average score with its market target and
+  // moves the shooting factor k toward it. Four rounds.
   function calibrate(){for(var it=0;it<4;it++){var sum={},n=300;sum[AWAY]=0;sum[HOME]=0;
     for(var i=0;i<n;i++){var g=play(1000+i+it*7919,false);sum[AWAY]+=g.score[AWAY];sum[HOME]+=g.score[HOME]}
     [AWAY,HOME].forEach(function(c){T[c].k*=Math.pow(TARGET[c]/(sum[c]/n),.85)})}}
   return{play:play,calibrate:calibrate,T:T,AWAY:AWAY,HOME:HOME}}
 
+/* mount(): the play-by-play sim on game pages (scoreboard, game flow, box score). The First Basket
+   Simulator uses only Engine. */
 function mount(root,cfg){
   if(root._stop)root._stop();
   var E=Engine(cfg),A=cfg.away,H=cfg.home,G=null,qSel="all",boxT=A,timer=null;
@@ -193,6 +249,8 @@ function mount(root,cfg){
       $("chk").innerHTML=box((a/n).toFixed(1)+"&ndash;"+(h/n).toFixed(1),"average score, "+A+"&ndash;"+H+" (market "+cfg.targetAway.toFixed(1)+"&ndash;"+cfg.targetHome.toFixed(1)+")")
         +box(Math.round(w/n*100)+"%",esc(nick(H))+" win"+(cfg.winHome!=null?" (market "+Math.round(cfg.winHome*100)+"%)":""))
         +box(Math.round(tot/n*100)+"%","over "+cfg.total+" total points")+box(Math.round(cl/n*100)+"%","decided by 5 or fewer")+box(Math.round(ot/n*100)+"%","go to overtime")})()}
+  // Tune shooting, then show a first game whose seed comes from the matchup, so everyone sees the same
+  // game first.
   setTimeout(function(){E.calibrate();newGame(10000+(Math.abs(String(A+H+cfg.total).split("").reduce(function(s,c){return s*31+c.charCodeAt(0)|0},7))%89999));setTimeout(check,50)},20);
 }
 window.PBP={mount:mount,Engine:Engine,nick:nick};

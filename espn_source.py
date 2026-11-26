@@ -156,6 +156,7 @@ def first_basket(j, rows):
            for c in comp.get("competitors") or []}
     names = {r["PLAYER_ID"]: r["PLAYER_NAME"] for r in rows}
     starters = {r["PLAYER_NAME"] for r in rows if r.get("START")}
+    # Opening possession: the team on the first shot, miss or turnover among the opening plays.
     tip = None
     for pl in plays[:12]:
         txt = (pl.get("text") or "").lower()
@@ -165,6 +166,7 @@ def first_basket(j, rows):
     for pl in plays:
         val = pl.get("scoreValue")
         txt = pl.get("text") or ""
+        # The first made 2 or 3 is the first basket; free throws don't count.
         made = pl.get("scoringPlay") and val in (2, 3)
         if not made and val is None:
             made = " makes " in txt and "free throw" not in txt.lower()

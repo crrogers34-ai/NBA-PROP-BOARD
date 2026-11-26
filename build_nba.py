@@ -313,6 +313,8 @@ def parse_first_basket(ev_odds):
                 nm, desc = o.get("name") or "", o.get("description") or ""
                 if nm.lower() == "no":
                     continue
+                # Books list each player either by name or as a "Yes" outcome with the player in the description;
+                # "No" outcomes are skipped above.
                 who = desc if (desc and nm.lower() in ("yes", "")) else (nm or desc)
                 if not who or o.get("price") is None:
                     continue
@@ -792,20 +794,26 @@ def grade_first_baskets(out_dir, actual, slate_day):
         with open(lp) as f:
             games = json.load(f).get("games", [])
     for g in games:
+        # Grade each logged game that has finished (dated before today's slate) and isn't graded yet.
         if g.get("result") or g["date"] >= slate_day.isoformat():
             continue
         a = actual.get((g["date"], g["away"], g["home"]))
         if not a:
             continue
+        # Chance the sim gave the real first scorer. A player outside the projections gets his team's
+        # bench share, unless ESPN lists him as a starter (then 0: the sim missed a starter).
         name = a["n"] if norm(a["n"]) in {norm(k) for k in g["p"]} else a["n"]
         pk = {norm(k): v for k, v in g["p"].items()}
         p_act = pk.get(norm(name), g["p"].get(a["t"] + " bench", 0.0) if not a.get("starter") else 0.0)
+        # Where he ranked among the sim's picks for this game.
         ranked = sorted(g["p"].items(), key=lambda kv: -kv[1])
         rank = next((i + 1 for i, (k, _) in enumerate(ranked) if norm(k) == norm(name)), None)
         # sportsbooks: best price, normalized across the players they list
         imp = {norm(k): (100 / (b["odds"] + 100) if b["odds"] > 0 else -b["odds"] / (-b["odds"] + 100)) for k, b in g["best"].items()}
         tot = sum(imp.values())
         p_book = imp.get(norm(name), 0) / tot if tot else None
+        # Every player the sim rated +EV at his best price is a 1-unit bet: a win pays the decimal profit,
+        # a loss costs 1 unit. Several bets in one game are normal, and only one can win.
         bets = []
         for k, b in g["best"].items():
             pr = pk.get(norm(k), 0)
@@ -813,6 +821,7 @@ def grade_first_baskets(out_dir, actual, slate_day):
             if pr * d - (1 - pr) > 0:
                 won = norm(k) == norm(name)
                 bets.append({"n": k, "bk": b["bk"], "odds": b["odds"], "p": pr, "won": won, "units": round(d if won else -1, 2)})
+        # The team the sim favored to score first, and whether it did.
         fav = max(g["team"], key=g["team"].get)
         g["result"] = {"n": a["n"], "t": a["t"], "how": a["how"], "text": a["text"], "starter": a.get("starter"),
                        "tip": a.get("tip"), "p": round(p_act, 4), "rank": rank, "p_book": round(p_book, 4) if p_book else p_book,
@@ -820,6 +829,8 @@ def grade_first_baskets(out_dir, actual, slate_day):
     with open(lp, "w") as f:
         f.write('{"games":[\n' + ",\n".join(json.dumps(x, separators=(",", ":")) for x in games) + "\n]}\n")
 
+    # Summary for the page: accuracy against the books, top-3 rate, team and tip-off rates, the method
+    # mix (real vs. sim), the bet record and the most recent games.
     G = [g for g in games if g.get("result")]
     R = [g["result"] for g in G]
     n = len(R)
@@ -847,6 +858,7 @@ def grade_first_baskets(out_dir, actual, slate_day):
            "bets": {"count": len(bets), "wins": sum(b["won"] for b in bets), "units": round(sum(b["units"] for b in bets), 2)},
            "recent": [{"date": g["date"], "game": f"{g['away']} at {g['home']}", **{k: g["result"][k] for k in ("n", "t", "how", "p", "rank", "p_book")}}
                       for g in sorted(G, key=lambda g: g["date"], reverse=True)[:15]]}
+    # Season-wide facts from every game in ESPN's play-by-play, not just the games we logged.
     A = list(actual.values())
     if A:
         m = len(A)
@@ -1251,6 +1263,9 @@ def build(args, fetch_logs_fn=None, fetch_roster_fn=None, odds_fn=odds_get, abbr
                            "away_rest": rest_info(g["away"], tg_cur, slate_day, g["home"]),
                            "home_rest": rest_info(g["home"], tg_cur, slate_day, g["home"])})
 
+    # firstbasket.json for the First Basket Simulator: each game's projected players (minutes, starter
+    # flag, injury tag, projections), the market-implied team totals the sim is tuned to, and the books'
+    # first basket prices. Prices for names that match no projected player go in "unmatched".
     fb_games = []
     for g in games:
         pl = [{"n": p["n"], "t": p["t"], "min": round(p["min"], 1), "start": p.get("start", False), "inj": p["inj"],

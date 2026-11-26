@@ -60,11 +60,17 @@
 <script src="pbp.js"></script>
 <script>
 (function(){
+// N = simulated openings per game for the odds table. BKS = books shown, in column order.
 var N=20000,BKS=["DK","FD","MGM","CZR"],BN={DK:"DraftKings",FD:"FanDuel",MGM:"BetMGM",CZR:"Caesars"},HOME={DK:"https://sportsbook.draftkings.com",FD:"https://sportsbook.fanduel.com",MGM:"https://sports.betmgm.com",CZR:"https://sportsbook.caesars.com"};
+// DATA = the slate (firstbasket.json, or sample data until it loads). SMP = showing sample data.
+// G = the chosen game, E = its sim engine, RES = results of the N runs,
+// tip = chance the home team wins the opening tip (0.5 = coin flip).
 var DATA=null,SMP=true,G=null,E=null,RES=null,tip=.5;
 function esc(x){return String(x==null?"":x).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function nick(t){return PBP.nick(t)}
+// Fair American odds for a chance p, with no sportsbook margin.
 function fair(p){if(p<=0)return"-";p=Math.min(p,.995);return p>=.5?String(-Math.round(100*p/(1-p))):"+"+Math.round(100*(1-p)/p)}
+// Expected profit on a $100 bet at American odds o when the win chance is p.
 function ev(p,o){var d=o>0?o/100:100/-o;return(p*d-(1-p))*100}
 function mmss(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+("0"+s%60).slice(-2)}
 
@@ -74,10 +80,14 @@ function sampleData(){return{generated:null,games:sampleGames().map(function(g){
   [g.home,g.away].forEach(function(t){pl.filter(function(p){return p.t===t}).sort(function(a,b){return b.min-a.min}).slice(0,5).forEach(function(p){p.start=true})});
   return{id:g.id,away:g.away,home:g.home,when:g.when,spread:g.spread,total:g.total,exp_home:g.exp_home,exp_away:g.exp_away,win_home:g.win_home,players:pl,odds:{},unmatched:[]}})}}
 
+// Game menu: games that haven't started or started within the last 3 hours (all games if none).
+// ?g=<game id> in the URL picks one.
 function fillGames(){var sel=document.getElementById("fbGame"),want=null;try{want=new URLSearchParams(location.search).get("g")}catch(e){}
   var L=DATA.games.filter(function(g){return!g.kick||Date.parse(g.kick)>Date.now()-3*36e5});if(!L.length)L=DATA.games;
   sel.innerHTML=L.map(function(g){return'<option value="'+esc(g.id)+'">'+g.away+" at "+g.home+(g.when?" · "+esc(g.when):"")+'</option>'}).join("");
   if(want&&L.some(function(g){return g.id===want}))sel.value=want;choose()}
+// A game was picked: reset the tip-off menu (kept only when re-picking the same game), build and tune
+// its engine, then fill the odds table and show one sample opening.
 function choose(){var id=document.getElementById("fbGame").value,same=G&&G.id===id;G=DATA.games.filter(function(g){return g.id===id})[0];
   var t=document.getElementById("fbTip"),keep=same?t.value:"0.5";
   t.innerHTML='<option value="0.5">Even (50/50)</option><option value="0">'+esc(nick(G.away))+' win the tip</option><option value="1">'+esc(nick(G.home))+' win the tip</option>';
@@ -87,6 +97,7 @@ function choose(){var id=document.getElementById("fbGame").value,same=G&&G.id===
   document.getElementById("fbOne").innerHTML='<p class="sub">Setting up…</p>';
   setTimeout(function(){E.calibrate();runMany();one()},10)}
 
+// One random run for the result card: scorer, method, team, clock and the plays leading up to it.
 function one(){var r=E.play(Math.floor(Math.random()*1e9),true,{stopFirst:true,tipHome:tip}),f=r.first,side=f.t===G.home?"ps-h":"ps-a";
   var plays=r.ev.filter(function(e){return e.t}),pre=plays.slice(0,-1);
   var h='<div class="fb-res '+side+'"><div class="fb-k">First basket</div><div class="fb-who">'+esc(f.n==="Bench"?nick(f.t)+" bench player":f.n)+'</div>'
@@ -98,23 +109,30 @@ function one(){var r=E.play(Math.floor(Math.random()*1e9),true,{stopFirst:true,t
   else h+='<p class="sub" style="margin:10px 0 0">It went in on the very first possession.</p>';
   document.getElementById("fbOne").innerHTML=h+'</div>'}
 
+// N runs with fixed seeds (the same as fb_predict.js): each player's chance, the method mix, the team
+// split and each player's own methods.
 function runMany(){var c={},cat={},tm={},pc={};tm[G.away]=0;tm[G.home]=0;
   for(var i=0;i<N;i++){var f=E.play(700000+i,false,{stopFirst:true,tipHome:tip}).first,k=f.t+"|"+f.n;c[k]=(c[k]||0)+1;cat[f.cat]=(cat[f.cat]||0)+1;tm[f.t]++;
     pc[k]=pc[k]||{};pc[k][f.cat]=(pc[k][f.cat]||0)+1}
   var p={};for(var k in c)p[k]=c[k]/N;RES={p:p,cat:cat,tm:tm,pc:pc};drawTable()}
 
+// The book with the best (highest) price for a player.
 function bestOf(o){var b=null;BKS.forEach(function(k){if(o&&o[k]&&(b===null||o[k].odds>o[b].odds))b=k});return b}
+// Odds table: one row per projected player plus each team's "Rest of bench", sorted by chance.
 function drawTable(){var odds=G.odds||{},sample=SMP,rows=[];
   [G.away,G.home].forEach(function(t){G.players.filter(function(p){return p.t===t}).forEach(function(p){rows.push({n:p.n,t:t,start:p.start,inj:p.inj,p:RES.p[t+"|"+p.n]||0,o:odds[p.n],pc:RES.pc[t+"|"+p.n]})});
     var bp=RES.p[t+"|Bench"]||0;if(bp>0)rows.push({n:"Rest of bench",t:t,bench:true,p:bp})});
+  // Sample data only: made-up prices near each player's fair odds.
   if(sample)rows.forEach(function(r){if(r.p>.004&&!r.bench){r.o={};BKS.forEach(function(k,i){var v=Math.round((1/r.p-1)*100*(.78+((r.n.length+i*3)%7)/50)/5)*5;r.o[k]={odds:Math.max(150,v),link:HOME[k]}})}});
   rows.sort(function(a,b){return(b.bench?-1:0)-(a.bench?-1:0)||b.p-a.p});
   var cats=Object.keys(RES.cat).sort(function(a,b){return RES.cat[b]-RES.cat[a]}),mx=Math.max.apply(null,cats.map(function(k){return RES.cat[k]}));
+  // Summary tiles: team to score first, and how the first basket goes in.
   var ta=RES.tm[G.away]/N,th=RES.tm[G.home]/N;
   document.getElementById("fbSum").innerHTML='<div><div class="fb-k">Team to score first</div><div class="fb-split"><span style="width:'+(ta*100)+'%;background:var(--away)"></span><span style="width:'+(th*100)+'%;background:var(--home)"></span></div>'
     +'<div style="display:flex;justify-content:space-between;gap:10px"><span><span class="fb-tag ps-a">'+G.away+'</span> <span class="num" style="font-size:22px">'+(ta*100).toFixed(1)+'%</span> <span class="tm">fair '+fair(ta)+'</span></span><span style="text-align:right"><span class="num" style="font-size:22px">'+(th*100).toFixed(1)+'%</span> <span class="fb-tag ps-h">'+G.home+'</span> <span class="tm">fair '+fair(th)+'</span></span></div>'
     +'<p class="tm" style="margin:8px 0 0">'+(tip===.5?"Tip-off treated as a coin flip.":esc(nick(tip===1?G.home:G.away))+" win the tip in every run.")+'</p></div>'
     +'<div><div class="fb-k">How the first basket goes in</div>'+cats.map(function(k){var v=RES.cat[k]/N;return'<div class="fb-bar"><span>'+k+'</span><i style="width:'+(RES.cat[k]/mx*100)+'%"></i><span class="num">'+Math.round(v*100)+'%</span></div>'}).join("")+'</div>';
+  // Table columns: chance, fair odds, most likely method, best price, EV per $100 and each book's price.
   var h='<thead><tr><th>Player</th><th>Chance</th><th>Fair odds</th><th>Most likely way</th><th>Best price</th><th>EV per $100</th>'+BKS.map(function(k){return'<th>'+k+'</th>'}).join("")+'</tr></thead><tbody>';
   rows.forEach(function(r){var b=bestOf(r.o),way="";
     if(r.pc){var ks=Object.keys(r.pc).sort(function(x,y){return r.pc[y]-r.pc[x]});var tot=0;ks.forEach(function(k){tot+=r.pc[k]});way=ks[0]+" ("+Math.round(r.pc[ks[0]]/tot*100)+"%)"}
@@ -124,16 +142,19 @@ function drawTable(){var odds=G.odds||{},sample=SMP,rows=[];
     +'<td class="num">'+(b?fo(r.o[b].odds)+' <span class="tm">'+b+'</span>':"-")+'</td>'
     +'<td class="num '+(e==null?"":(e>=0?"pos":"neg"))+'">'+(e==null?"-":(e>=0?"+":"−")+"$"+Math.abs(e).toFixed(0))+'</td>'
     +BKS.map(function(k){var o=r.o&&r.o[k];return'<td class="num'+(o&&k===b?" best":"")+'">'+(o?'<a href="'+esc(o.link||HOME[k])+'" target="_blank" rel="noopener">'+fo(o.odds)+'</a>':"-")+'</td>'}).join("")+'</tr>'});
+  // Players the books list but the projections don't.
   (G.unmatched||[]).forEach(function(u){var b=bestOf(u.books);h+='<tr class="bench"><td><div class="nm">'+esc(u.n)+'</div><div class="tm">Not in the projections (no recent minutes)</div></td><td class="num">-</td><td class="num">-</td><td>-</td><td class="num">'+(b?fo(u.books[b].odds)+' <span class="tm">'+b+'</span>':"-")+'</td><td>-</td>'+BKS.map(function(k){var o=u.books[k];return'<td class="num">'+(o?fo(o.odds):"-")+'</td>'}).join("")+'</tr>'});
   document.getElementById("fbTbl").innerHTML=h+'</tbody>';
   var anyOdds=Object.keys(odds).length>0;
   document.getElementById("fbFoot").textContent=(sample?"Sample data with made-up players and odds. ":"")+(!sample&&!anyOdds?"Sportsbooks haven't posted first basket odds for this game yet; they usually appear the afternoon of the game. ":"")
-    +"Chance and fair odds come from "+N.toLocaleString("en-US")+" simulated openings. A first basket here is the first made field goal; free throws don't count, which matches how most sportsbooks settle it, but check your book's rules. Starters are the players who started each team's last game, swapping in the next-highest-minute player for anyone listed Out. EV per $100 is what a $100 bet at the best price would return on average if the sim's chance is right; book prices on first basket carry a large margin, so most are negative. Prices link to each sportsbook.";
+    +"Chance and fair odds come from "+N.toLocaleString("en-US")+" simulated openings. A first basket here is the first made field goal; free throws don't count, which matches how most sportsbooks settle it, but check your book's rules. Starters are the players who started the last game each of them played, swapping in the next-highest-minute player for anyone listed Out. EV per $100 is what a $100 bet at the best price would return on average if the sim's chance is right; book prices on first basket carry a large margin, so most are negative. Prices link to each sportsbook.";
 }
+// Season-wide facts from every game in ESPN's play-by-play (the season block of fb_results.json).
 function drawSeason(S){if(!S||!S.games)return"";var pct=function(x){return x==null?"-":Math.round(x*100)+"%"};
   function bars(o){var mx=Math.max.apply(null,Object.keys(o).map(function(k){return o[k]}));return Object.keys(o).map(function(k){return'<div class="fb-bar"><span>'+k+'</span><i style="width:'+(o[k]/mx*100)+'%"></i><span class="num">'+pct(o[k])+'</span></div>'}).join("")}
   return'<h3 class="tr3" style="margin-top:18px">This season so far</h3><p class="sub" style="margin:0 0 8px">Every first basket in '+S.games+' games, from ESPN\'s play-by-play. The team with the opening possession scored first '+pct(S.tip_winner_scored_first)+' of the time, and starters scored '+pct(S.starter_share)+' of first baskets.</p>'
   +'<div class="fb-sum"><div><div class="fb-k">How it went in</div>'+bars(S.how)+'</div><div><div class="fb-k">Who scored it</div>'+bars(S.position)+'</div></div>'}
+// Track record from fb_results.json, written by grade_first_baskets() in build_nba.py.
 function drawRecord(r){if(!r)return;if(!r.games){if(r.season)document.getElementById("fbRec").innerHTML='<p class="sub">Every game\'s pregame chances are logged before tip-off and graded against the real first basket. The sim\'s own record shows up here after the first night of games.</p>'+drawSeason(r.season);return}
   var pct=function(x){return x==null?"-":Math.round(x*100)+"%"},p1=function(x){return x==null?"-":(x*100).toFixed(1)+"%"};
   function tile(v,l){return'<div><span class="num">'+v+'</span>'+l+'</div>'}
@@ -152,6 +173,8 @@ function drawRecord(r){if(!r)return;if(!r.games){if(r.season)document.getElement
     +r.recent.map(function(x){return'<tr><td class="tm">'+x.date.slice(5).replace("-","/")+'</td><td>'+esc(x.game)+'</td><td><span class="nm">'+esc(x.n)+'</span> <span class="tm">'+esc(x.how)+(x.rank?" · #"+x.rank+" in the sim":"")+'</span></td><td class="num" style="text-align:right">'+p1(x.p)+'</td><td class="num" style="text-align:right">'+p1(x.p_book)+'</td></tr>'}).join("")+'</tbody></table></div>';
   h+='<p class="sub" style="font-size:13px;margin-top:8px">Higher "average chance" means sharper odds: a sim that gives the real first scorer more chance than the books do on average is pricing this market better than they are. +EV bets count 1 unit on every player the sim rated profitable at the best available price. A few dozen games is still a small sample.</p>';
   document.getElementById("fbRec").innerHTML=h+drawSeason(r.season)}
+// Start-up: load the track record, wire the menus and button, show sample data, then swap in the
+// live slate when firstbasket.json loads (members only).
 get("fb_results.json").then(drawRecord);
 document.getElementById("fbGame").onchange=choose;
 document.getElementById("fbTip").onchange=function(){tip=+this.value;document.getElementById("fbOne").innerHTML='<p class="sub">Updating…</p>';setTimeout(function(){runMany();one()},10)};
