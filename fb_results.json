@@ -1,35 +1,145 @@
 {
- "generated": "2026-11-28T02:57:25+00:00",
- "games": 59,
- "pending": 11,
- "avg_chance_actual": 0.1017,
- "avg_book_chance_actual": 0.1032,
- "book_games": 56,
- "top3": 0.39,
- "team_first_right": 0.593,
- "tip_winner_scored_first": 0.61,
+ "generated": "2026-11-28T15:21:39+00:00",
+ "games": 70,
+ "pending": 0,
+ "avg_chance_actual": 0.1011,
+ "avg_book_chance_actual": 0.1036,
+ "book_games": 64,
+ "top3": 0.4,
+ "team_first_right": 0.571,
+ "tip_winner_scored_first": 0.586,
  "starter_share": 1.0,
  "how_actual": {
-  "Three": 0.39,
-  "Jump shot": 0.237,
+  "Three": 0.386,
+  "Jump shot": 0.257,
   "Layup": 0.186,
-  "Dunk": 0.102,
-  "Floater": 0.085
+  "Dunk": 0.086,
+  "Floater": 0.086
  },
  "how_sim": {
-  "Three": 0.337,
+  "Three": 0.335,
   "Layup": 0.236,
   "Jump shot": 0.22,
   "Dunk": 0.076,
   "Floater": 0.075,
-  "Hook shot": 0.056
+  "Hook shot": 0.057
  },
  "bets": {
-  "count": 177,
-  "wins": 23,
-  "units": 45.08
+  "count": 212,
+  "wins": 29,
+  "units": 60.08
  },
  "recent": [
+  {
+   "date": "2026-11-27",
+   "game": "ATL at BOS",
+   "n": "Hugo Gonzalez",
+   "t": "BOS",
+   "how": "Layup",
+   "p": 0.0,
+   "rank": null,
+   "p_book": 0.0
+  },
+  {
+   "date": "2026-11-27",
+   "game": "BKN at TOR",
+   "n": "Scottie Barnes",
+   "t": "TOR",
+   "how": "Jump shot",
+   "p": 0.1622,
+   "rank": 1,
+   "p_book": 0.1443
+  },
+  {
+   "date": "2026-11-27",
+   "game": "DAL at PHX",
+   "n": "Daniel Gafford",
+   "t": "DAL",
+   "how": "Jump shot",
+   "p": 0.0761,
+   "rank": 8,
+   "p_book": 0.0856
+  },
+  {
+   "date": "2026-11-27",
+   "game": "DEN at UTA",
+   "n": "Nikola Jokic",
+   "t": "DEN",
+   "how": "Three",
+   "p": 0.1474,
+   "rank": 1,
+   "p_book": 0.1158
+  },
+  {
+   "date": "2026-11-27",
+   "game": "GSW at POR",
+   "n": "Jrue Holiday",
+   "t": "POR",
+   "how": "Three",
+   "p": 0.1142,
+   "rank": 3,
+   "p_book": 0.0
+  },
+  {
+   "date": "2026-11-27",
+   "game": "LAL at SAS",
+   "n": "Luka Doncic",
+   "t": "LAL",
+   "how": "Jump shot",
+   "p": 0.1789,
+   "rank": 2,
+   "p_book": 0.1399
+  },
+  {
+   "date": "2026-11-27",
+   "game": "MEM at MIN",
+   "n": "Jaylen Wells",
+   "t": "MEM",
+   "how": "Floater",
+   "p": 0.0927,
+   "rank": 7,
+   "p_book": 0.0839
+  },
+  {
+   "date": "2026-11-27",
+   "game": "MIA at NYK",
+   "n": "Klay Thompson",
+   "t": "MIA",
+   "how": "Three",
+   "p": 0.0956,
+   "rank": 5,
+   "p_book": 0.0813
+  },
+  {
+   "date": "2026-11-27",
+   "game": "MIL at DET",
+   "n": "Ryan Rollins",
+   "t": "MIL",
+   "how": "Three",
+   "p": 0.0759,
+   "rank": 9,
+   "p_book": 0.0899
+  },
+  {
+   "date": "2026-11-27",
+   "game": "NOP at LAC",
+   "n": "Zion Williamson",
+   "t": "NOP",
+   "how": "Jump shot",
+   "p": 0.1333,
+   "rank": 1,
+   "p_book": 0.1098
+  },
+  {
+   "date": "2026-11-27",
+   "game": "PHI at IND",
+   "n": "Dominick Barlow",
+   "t": "PHI",
+   "how": "Layup",
+   "p": 0.0,
+   "rank": null,
+   "p_book": 0.0
+  },
   {
    "date": "2026-11-25",
    "game": "BKN at MIL",
@@ -69,134 +179,24 @@
    "p": 0.102,
    "rank": 6,
    "p_book": 0.1
-  },
-  {
-   "date": "2026-11-25",
-   "game": "MIA at PHI",
-   "n": "Giannis Antetokounmpo",
-   "t": "MIA",
-   "how": "Layup",
-   "p": 0.1288,
-   "rank": 1,
-   "p_book": 0.1489
-  },
-  {
-   "date": "2026-11-25",
-   "game": "MIN at OKC",
-   "n": "Rudy Gobert",
-   "t": "MIN",
-   "how": "Layup",
-   "p": 0.0568,
-   "rank": 9,
-   "p_book": 0.0985
-  },
-  {
-   "date": "2026-11-25",
-   "game": "PHX at HOU",
-   "n": "Kevin Durant",
-   "t": "HOU",
-   "how": "Jump shot",
-   "p": 0.1348,
-   "rank": 1,
-   "p_book": 0.1076
-  },
-  {
-   "date": "2026-11-25",
-   "game": "SAC at GSW",
-   "n": "Charles Bassey",
-   "t": "GSW",
-   "how": "Layup",
-   "p": 0.1415,
-   "rank": 1,
-   "p_book": 0.1333
-  },
-  {
-   "date": "2026-11-25",
-   "game": "SAS at POR",
-   "n": "Damian Lillard",
-   "t": "POR",
-   "how": "Three",
-   "p": 0.1305,
-   "rank": 3,
-   "p_book": 0.0925
-  },
-  {
-   "date": "2026-11-24",
-   "game": "BOS at WAS",
-   "n": "AJ Dybantsa",
-   "t": "WAS",
-   "how": "Jump shot",
-   "p": 0.0848,
-   "rank": 8,
-   "p_book": 0.0852
-  },
-  {
-   "date": "2026-11-24",
-   "game": "DAL at DEN",
-   "n": "Cameron Johnson",
-   "t": "DEN",
-   "how": "Three",
-   "p": 0.0868,
-   "rank": 6,
-   "p_book": 0.0872
-  },
-  {
-   "date": "2026-11-24",
-   "game": "DET at ORL",
-   "n": "Isaiah Joe",
-   "t": "DET",
-   "how": "Jump shot",
-   "p": 0.0003,
-   "rank": 11,
-   "p_book": 0
-  },
-  {
-   "date": "2026-11-23",
-   "game": "BKN at MIN",
-   "n": "Rudy Gobert",
-   "t": "MIN",
-   "how": "Jump shot",
-   "p": 0.0704,
-   "rank": 10,
-   "p_book": 0.0963
-  },
-  {
-   "date": "2026-11-23",
-   "game": "CLE at CHI",
-   "n": "Sam Merrill",
-   "t": "CLE",
-   "how": "Three",
-   "p": 0.0001,
-   "rank": 12,
-   "p_book": 0
-  },
-  {
-   "date": "2026-11-23",
-   "game": "LAC at HOU",
-   "n": "Amen Thompson",
-   "t": "HOU",
-   "how": "Dunk",
-   "p": 0.0949,
-   "rank": 7,
-   "p_book": 0.1077
   }
  ],
  "season": {
-  "games": 270,
+  "games": 281,
   "how": {
-   "Three": 0.333,
-   "Jump shot": 0.267,
-   "Layup": 0.207,
-   "Dunk": 0.119,
-   "Floater": 0.074
+   "Three": 0.335,
+   "Jump shot": 0.27,
+   "Layup": 0.206,
+   "Dunk": 0.114,
+   "Floater": 0.075
   },
   "position": {
    "Guard": 0.452,
-   "Forward": 0.4,
-   "Center": 0.148
+   "Forward": 0.402,
+   "Center": 0.146
   },
   "starter_share": 1.0,
-  "tip_winner_scored_first": 0.604,
+  "tip_winner_scored_first": 0.598,
   "first_quarter": 1.0
  }
 }

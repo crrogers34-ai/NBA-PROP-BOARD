@@ -1,63 +1,63 @@
 {
- "generated": "2026-11-28T02:57:25+00:00",
- "props_graded": 3468,
- "weight": 0.165,
- "weight_best_fit": 0.15000000000000002,
+ "generated": "2026-11-28T15:21:39+00:00",
+ "props_graded": 4132,
+ "weight": 0.127,
+ "weight_best_fit": 0.1,
  "proj_error": 0.12,
  "bias": {
-  "Points": 1.0179,
-  "Rebounds": 1.0324,
-  "Assists": 1.0513,
-  "3PM": 1.0194,
-  "PRA": 1.0193
+  "Points": 1.0106,
+  "Rebounds": 1.0383,
+  "Assists": 1.0385,
+  "3PM": 1.0048,
+  "PRA": 1.0152
  },
  "scale": {
-  "Points": 1.1118,
-  "Rebounds": 1.1837,
-  "Assists": 1.1436,
-  "3PM": 1.1394,
-  "PRA": 1.0074
+  "Points": 1.092,
+  "Rebounds": 1.1978,
+  "Assists": 1.1475,
+  "3PM": 1.1145,
+  "PRA": 0.9893
  },
  "markets": {
   "Points": {
-   "props": 807,
-   "projection_fix": 1.025,
-   "range_fix": 1.153,
-   "over_rate": 0.491,
+   "props": 950,
+   "projection_fix": 1.014,
+   "range_fix": 1.121,
+   "over_rate": 0.483,
    "market_over": 0.501
   },
   "Rebounds": {
-   "props": 759,
-   "projection_fix": 1.045,
-   "range_fix": 1.256,
-   "over_rate": 0.477,
-   "market_over": 0.494
+   "props": 892,
+   "projection_fix": 1.051,
+   "range_fix": 1.264,
+   "over_rate": 0.479,
+   "market_over": 0.493
   },
   "Assists": {
-   "props": 606,
-   "projection_fix": 1.077,
-   "range_fix": 1.215,
-   "over_rate": 0.536,
-   "market_over": 0.496
+   "props": 736,
+   "projection_fix": 1.054,
+   "range_fix": 1.208,
+   "over_rate": 0.526,
+   "market_over": 0.497
   },
   "3PM": {
-   "props": 635,
-   "projection_fix": 1.029,
-   "range_fix": 1.205,
-   "over_rate": 0.49,
-   "market_over": 0.486
+   "props": 759,
+   "projection_fix": 1.007,
+   "range_fix": 1.16,
+   "over_rate": 0.484,
+   "market_over": 0.487
   },
   "PRA": {
-   "props": 661,
-   "projection_fix": 1.028,
-   "range_fix": 1.011,
-   "over_rate": 0.498,
+   "props": 795,
+   "projection_fix": 1.021,
+   "range_fix": 0.985,
+   "over_rate": 0.491,
    "market_over": 0.501
   }
  },
  "score": {
-  "market_only": -0.6856,
-  "old_settings": -0.6874,
-  "new_settings": -0.6852
+  "market_only": -0.6852,
+  "old_settings": -0.687,
+  "new_settings": -0.6849
  }
 }
